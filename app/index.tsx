@@ -1,31 +1,18 @@
 import icons from "@/constants/icons";
 import images from "@/constants/images";
-import { useAuthContext } from "@/context/AuthContext";
-import { login, logout } from "@/lib/appwrite";
-import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { login } from "@/lib/appwrite";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
-  const { isLogged, loading, refetch } = useAuthContext();
   const handleLogin = async () => {
     const result = await login();
     if (result) {
-      refetch();
+      console.log(result);
     } else {
       console.log("Failed to login");
     }
   };
-
-  if (!loading && isLogged) {
-    console.log("redirect home ...");
-  }
   return (
     <SafeAreaView className="bg-white h-full">
       <ScrollView

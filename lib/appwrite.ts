@@ -60,12 +60,10 @@ export const logout = async () => {
 
 export const getCurrentUser = async () => {
   try {
-    const result = await account.get();
-    console.log(result);
-    const userAvatar = avatars.getInitials();
-    console.log(userAvatar);
-    if (result && userAvatar) {
-      return { ...result, avtar: userAvatar.toString() };
+    const { $id, name, email } = await account.get();
+    if (name) {
+      const userAvatar = avatars.getInitials(name);
+      return { $id, name, email, avatar: userAvatar.toString() };
     }
     return null;
   } catch (error) {
