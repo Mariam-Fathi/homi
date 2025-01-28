@@ -4,7 +4,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import "./global.css";
 
-export default function RootLayout() {
+export default function Layout() {
   const [fontsLoaded] = useFonts({
     "Rubik-Bold": require("../assets/fonts/Rubik-Bold.ttf"),
     "Rubik-ExtraBold": require("../assets/fonts/Rubik-ExtraBold.ttf"),
@@ -30,6 +30,10 @@ export default function RootLayout() {
         statusBarStyle: "dark",
         statusBarBackgroundColor: "white",
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(root)" />
+    </Stack>
   );
 }
