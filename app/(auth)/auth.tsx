@@ -47,7 +47,7 @@ const Auth = () => {
           resizeMode="contain"
         />
 
-        <View className="px-10">
+        <View className="px-10 mt-[-10]">
           <Text className="text-base text-center uppercase font-rubik text-black-200">
             Welcome To Real Scout
           </Text>
