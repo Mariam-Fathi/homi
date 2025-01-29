@@ -1,20 +1,33 @@
 import {
   Client,
   Account,
-  ID,
   OAuthProvider,
   Avatars,
+  Databases,
 } from "react-native-appwrite";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 
+export const config = {
+  platform: "com.mf.homihunt",
+  endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
+  projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
+  databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
+  galleriesCollectionId:
+    process.env.EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID,
+  reviewsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID,
+  agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
+  propertiesCollectionId:
+    process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
+};
 const client = new Client()
-  .setEndpoint("https://cloud.appwrite.io/v1")
-  .setProject("678cf37a003e229fd1a8")
-  .setPlatform("com.mf.homihunt");
+  .setEndpoint(config.endpoint!)
+  .setProject(config.projectId!)
+  .setPlatform(config.platform!);
 
-const account = new Account(client);
-const avatars = new Avatars(client);
+export const account = new Account(client);
+export const avatars = new Avatars(client);
+export const databases = new Databases(client);
 
 export const login = async () => {
   try {

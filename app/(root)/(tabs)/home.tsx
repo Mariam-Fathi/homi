@@ -1,10 +1,13 @@
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import React, { useEffect } from "react";
+import seed from "@/lib/seed";
 
 const Home = () => {
   return (
     <View>
-      <Text>Home</Text>
+      <TouchableOpacity onPress={seed}>
+        <Text>Seed</Text>
+      </TouchableOpacity>
     </View>
   );
 };
