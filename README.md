@@ -1,4 +1,4 @@
-# Full-Stack React Native Real Estate App
+# Real Estate application
 
 **Tech Stack:** Expo, React Native, TypeScript, Nativewind, Appwrite
 
