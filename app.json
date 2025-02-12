@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "homi-hunt-app",
-    "slug": "homi-hunt-app",
+    "name": "Homi",
+    "slug": "homi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -11,12 +11,7 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
+    "android": {},
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -27,10 +22,9 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash.png",
           "resizeMode": "cover",
-          "backgroundColor": "#ffffff",
-          "enableFullScreenImage_legacy": true
+          "backgroundColor": "#ffffff"
         }
       ],
       [
