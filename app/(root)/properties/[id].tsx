@@ -264,7 +264,7 @@ const Property = () => {
               numberOfLines={1}
               className="text-primary-300 text-start text-2xl font-rubik-bold"
             >
-              ${property?.price}
+              EGP {property?.price}
             </Text>
           </View>
 

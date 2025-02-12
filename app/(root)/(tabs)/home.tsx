@@ -20,6 +20,7 @@ import { Card, FeaturedCard } from "@/components/Cards";
 import { useAppwrite } from "@/lib/useAppwrite";
 import { getLatestProperties, getProperties } from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
+import seed from "@/lib/seed";
 
 const Home = () => {
   const { user } = useAuthStore();
@@ -102,7 +103,7 @@ const Home = () => {
                 <Text className="text-xl font-rubik-bold text-black-300">
                   Featured
                 </Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={seed}>
                   <Text className="text-base font-rubik-bold text-primary-300">
                     See all
                   </Text>
@@ -129,8 +130,6 @@ const Home = () => {
                 />
               )}
             </View>
-
-            {/* <Button title="seed" onPress={seed} /> */}
 
             <View className="mt-5">
               <View className="flex flex-row items-center justify-between">

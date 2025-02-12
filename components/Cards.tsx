@@ -22,7 +22,7 @@ export const FeaturedCard = ({ item, onPress }: Props) => {
       />
 
       <View className="flex flex-row items-center bg-white/90 px-3 py-1.5 rounded-full absolute top-5 right-5">
-        <Image source={icons.star} className="size-3.5" />
+        <Image source={icons.star} className="size-3.5 mt-[-3px]" />
         <Text className="text-xs font-rubik-bold text-primary-300 ml-1">
           {item.rating}
         </Text>
@@ -57,7 +57,7 @@ export const Card = ({ item, onPress }: Props) => {
       onPress={onPress}
     >
       <View className="flex flex-row items-center absolute px-2 top-5 right-5 bg-white/90 p-1 rounded-full z-50">
-        <Image source={icons.star} className="size-2.5" />
+        <Image source={icons.star} className="size-2.5 mt-[-3px]" />
         <Text className="text-xs font-rubik-bold text-primary-300 ml-0.5">
           {item.rating}
         </Text>
@@ -75,7 +75,7 @@ export const Card = ({ item, onPress }: Props) => {
 
         <View className="flex flex-row items-center justify-between mt-2">
           <Text className="text-base font-rubik-bold text-primary-300">
-            ${item.price}
+            EGP {item.price}
           </Text>
           <Image
             source={icons.heart}

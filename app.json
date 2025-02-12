@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "homi-hunt-app",
-    "slug": "homi-hunt-app",
+    "name": "Homi",
+    "slug": "homi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -24,8 +24,7 @@
         {
           "image": "./assets/images/splash.png",
           "resizeMode": "cover",
-          "backgroundColor": "#ffffff",
-          "enableFullScreenImage_legacy": true
+          "backgroundColor": "#ffffff"
         }
       ],
       [
