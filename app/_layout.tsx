@@ -3,6 +3,8 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import "./global.css";
+import { NotificationProvider } from "@/context/NotificationContext";
+import * as Notifications from "expo-notifications";
 
 export default function Layout() {
   const [fontsLoaded] = useFonts({
@@ -12,6 +14,14 @@ export default function Layout() {
     "Rubik-Medium": require("../assets/fonts/Rubik-Medium.ttf"),
     "Rubik-Regular": require("../assets/fonts/Rubik-Regular.ttf"),
     "Rubik-SemiBold": require("../assets/fonts/Rubik-SemiBold.ttf"),
+  });
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
   });
 
   useEffect(() => {
@@ -24,16 +34,18 @@ export default function Layout() {
     return null;
   }
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        statusBarStyle: "dark",
-        statusBarBackgroundColor: "white",
-      }}
-    >
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(root)" />
-    </Stack>
+    <NotificationProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          statusBarStyle: "dark",
+          statusBarBackgroundColor: "white",
+        }}
+      >
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(root)" />
+      </Stack>
+    </NotificationProvider>
   );
 }

@@ -11,7 +11,10 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {},
+    "android": {
+      "package": "com.mariamfathi.homi",
+      "googleServicesFile": "./google-services.json"
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -43,6 +46,20 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "5d028053-e54d-4d08-b0ad-9241032488d6"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5d028053-e54d-4d08-b0ad-9241032488d6"
     }
   }
 }
