@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync";
+import { router } from "expo-router";
 
 interface NotificationContextType {
   expoPushToken: string | null;
@@ -63,7 +64,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
           JSON.stringify(response, null, 2),
           JSON.stringify(response.notification.request.content.data, null, 2)
         );
-        // Handle the notification response here
+
+        const data = response.notification.request.content.data;
+        const propertyId = data?.id;
+
+        if (propertyId) {
+          router.push(`/properties/${propertyId}`);
+        }
       });
 
     return () => {
