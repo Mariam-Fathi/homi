@@ -2,7 +2,6 @@ import { useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
-import { ReactNativeModal } from "react-native-modal";
 
 import CustomButton from "@/components/CustomButton";
 import { fetchAPI } from "@/lib/fetch";
@@ -67,13 +66,12 @@ const Payment = ({ fullName, email, amount }: PaymentProps) => {
           Book Now
         </Text>
       </TouchableOpacity>
+{success&&
 
-      <ReactNativeModal
-        isVisible={success}
-        onBackdropPress={() => setSuccess(false)}
+      <View
+        className='flex-1 items-center justify-center bg-white'
       >
-        <View className="flex flex-col items-center justify-center bg-white p-7 rounded-2xl">
-          <Image source={images.check} className="w-28 h-28 mt-5" />
+          <Image source={images.check} className="w-28 h-28" />
 
           <Text className="text-2xl text-center font-JakartaBold mt-5">
             Booking placed successfully
@@ -93,7 +91,7 @@ const Payment = ({ fullName, email, amount }: PaymentProps) => {
             className="mt-5"
           />
         </View>
-      </ReactNativeModal>
+}
     </>
   );
 };
