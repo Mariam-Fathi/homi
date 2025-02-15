@@ -21,11 +21,8 @@ import { useAppwrite } from "@/lib/useAppwrite";
 import { getLatestProperties, getProperties } from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
 import seed from "@/lib/seed";
-import { useNotification } from "@/context/NotificationContext";
 
 const Home = () => {
-  const { notification, expoPushToken, error } = useNotification();
-
   const { user } = useAuthStore();
 
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
@@ -58,14 +55,6 @@ const Home = () => {
   }, [params.filter, params.query]);
 
   const handleCardPress = (id: string) => router.push(`/properties/${id}`);
-
-  if (error) {
-    return <Text>Error: {error.message}</Text>;
-  }
-
-  console.log("Your push token: ", expoPushToken);
-  console.log("Latest notification: ", notification?.request.content.title);
-  console.log(JSON.stringify(notification?.request.content.data, null, 2));
 
   return (
     <SafeAreaView className="h-full bg-white">

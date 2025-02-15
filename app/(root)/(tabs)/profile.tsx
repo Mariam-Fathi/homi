@@ -2,6 +2,7 @@ import {
   Alert,
   Image,
   ImageSourcePropType,
+  Pressable,
   SafeAreaView,
   ScrollView,
   Text,
@@ -14,6 +15,7 @@ import icons from "@/constants/icons";
 import { settings } from "@/constants/data";
 import { useAuthStore } from "@/store/authStore";
 import { Redirect } from "expo-router";
+import { useNotification } from "@/context/NotificationContext";
 
 interface SettingsItemProp {
   icon: ImageSourcePropType;
@@ -46,7 +48,13 @@ const SettingsItem = ({
 );
 
 const Profile = () => {
+  const { notification, expoPushToken, error } = useNotification();
+
   const { user, fetchCurrentUser, isAuthenticated } = useAuthStore();
+
+  const handleNotification = () => {
+    Alert.alert(expoPushToken!);
+  };
 
   const handleLogout = async () => {
     const result = await logout();
@@ -59,6 +67,10 @@ const Profile = () => {
 
   if (!isAuthenticated) return <Redirect href="/(auth)/auth" />;
 
+  if (error) {
+    return <Text>Error: {error.message}</Text>;
+  }
+
   return (
     <SafeAreaView className="h-full bg-white">
       <ScrollView
@@ -67,7 +79,9 @@ const Profile = () => {
       >
         <View className="flex flex-row items-center justify-between mt-5">
           <Text className="text-xl font-rubik-bold">Profile</Text>
-          <Image source={icons.bell} className="size-5" />
+          <Pressable onPress={handleNotification}>
+            <Image source={icons.bell} className="size-5" />
+          </Pressable>
         </View>
 
         <View className="flex flex-row justify-center mt-5">
