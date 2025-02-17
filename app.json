@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "homi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -24,7 +24,7 @@
       [
         "expo-router",
         {
-          "origin": "https://myapp.expo.app"
+          "origin": "https://homi.expo.app"
         }
       ],
       [
@@ -51,6 +51,7 @@
       [
         "@stripe/stripe-react-native",
         {
+          "merchantIdentifier": "merchant.com.homi",
           "publishableKey": "pk_test_51QgYSRDc5aXtM2Cdso8MF2NCniMTwYhpgDvlgi2RmNVneOEdCDXBkK5qP8RaV2XmhHTm3OemO0LiaBJym1UlhwoT00bKlAUw67"
         }
       ]
