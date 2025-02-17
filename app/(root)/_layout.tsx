@@ -16,6 +16,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="properties/[id]" />
+        <Stack.Screen name="success-payment" />
       </Stack>
     </NotificationProvider>
   );

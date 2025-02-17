@@ -17,8 +17,7 @@ import { facilities } from "@/constants/data";
 
 import { useAppwrite } from "@/lib/useAppwrite";
 import { getPropertyById } from "@/lib/appwrite";
-import { StripeProvider } from "@stripe/stripe-react-native";
-import * as Linking from "expo-linking";
+import StripeProvider from "../../../components/StripeProvider";
 import { useAuthStore } from "@/store/authStore";
 import Payment from "@/components/Payment";
 
@@ -36,10 +35,7 @@ const Property = () => {
   });
 
   return (
-    <StripeProvider
-      urlScheme={Linking.createURL("/").split(":")[0]}
-      publishableKey="pk_test_51QgYSRDc5aXtM2Cdso8MF2NCniMTwYhpgDvlgi2RmNVneOEdCDXBkK5qP8RaV2XmhHTm3OemO0LiaBJym1UlhwoT00bKlAUw67"
-    >
+    <StripeProvider>
       <View>
         <ScrollView
           showsVerticalScrollIndicator={false}
