@@ -32,7 +32,7 @@ export const databases = new Databases(client);
 
 export const login = async () => {
   try {
-    const deepLink = Linking.createURL("/");
+    const deepLink = Linking.createURL("(auth)/auth");
     const response = account.createOAuth2Token(
       OAuthProvider.Google,
       `${deepLink}`,
