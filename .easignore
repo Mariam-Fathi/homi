@@ -40,3 +40,5 @@ yarn-error.\*
 # Ignore test coverage reports
 
 /coverage
+
+android

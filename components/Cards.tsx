@@ -41,7 +41,7 @@ export const FeaturedCard = ({ item, onPress }: Props) => {
 
         <View className="flex flex-row items-center justify-between w-full">
           <Text className="text-xl font-rubik-extrabold text-white">
-            ${item.price}
+            EGP {item.price}
           </Text>
           <Image source={icons.heart} className="size-5" />
         </View>
