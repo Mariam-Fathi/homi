@@ -3,7 +3,7 @@ import Stripe from "stripe";
 export async function POST(req: Request) {
   const customDonation = Number(req.headers.get("custom_donation"));
   const origin = req.headers.get("origin")!;
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.EXPO_PUBLIC_STRIPE_SECRET_KEY!);
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "payment",

@@ -2,7 +2,7 @@ import { Stripe } from "stripe";
 
 export async function GET(req: Request) {
   const session_id = new URL(req.url).searchParams.get("session_id");
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.EXPO_PUBLIC_STRIPE_SECRET_KEY!);
 
   if (!session_id) {
     throw new Error("Please provide a valid session_id (`cs_test_...`)");

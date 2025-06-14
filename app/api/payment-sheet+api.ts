@@ -1,7 +1,7 @@
 import { Stripe } from "stripe";
 
 export async function POST(request: Request) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const stripe = new Stripe(process.env.EXPO_PUBLIC_STRIPE_SECRET_KEY!);
   const body = await request.json();
   const { name, email, amount } = body;
 
@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   }
 
   let customer;
+
   const doesCustomerExist = await stripe.customers.list({
     email,
   });
