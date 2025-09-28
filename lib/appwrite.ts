@@ -8,6 +8,8 @@ import {
 } from "react-native-appwrite";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import { makeRedirectUri } from 'expo-auth-session'
+
 
 export const config = {
   platform: "com.mf.homihunt",
@@ -32,7 +34,9 @@ export const databases = new Databases(client);
 
 export const login = async () => {
   try {
-    const deepLink = Linking.createURL("(auth)/auth");
+      const deepLink = new URL(makeRedirectUri({ preferLocalhost: true }));
+      const scheme = `${deepLink.protocol}//`;
+
     const response = account.createOAuth2Token(
       OAuthProvider.Google,
       `${deepLink}`,
@@ -40,14 +44,14 @@ export const login = async () => {
     );
     if (!response) throw new Error("Create OAuth2 token failed");
 
-    const browserResult = await WebBrowser.openAuthSessionAsync(
-      response.toString(),
-      `${deepLink}`
-    );
-    if (browserResult.type !== "success")
+    const result = await WebBrowser.openAuthSessionAsync(`${response}`, scheme);
+
+
+
+    if (result.type !== "success")
       throw new Error("Create session failed");
 
-    const url = new URL(browserResult.url);
+    const url = new URL(result.url);
     const secret = url.searchParams.get("secret")?.toString();
     const userId = url.searchParams.get("userId")?.toString();
     if (!secret || !userId) throw new Error("Create OAuth2 token failed");
