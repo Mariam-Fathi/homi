@@ -1,13 +1,13 @@
 import {
-  Client,
-  Account,
-  OAuthProvider,
-  Avatars,
-  Databases,
-  Query,
+    Client,
+    Account,
+    OAuthProvider,
+    Avatars,
+    Databases,
+    Query,
+    ID,
 } from "react-native-appwrite";
 import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
 import { makeRedirectUri } from 'expo-auth-session'
 
 
@@ -23,6 +23,9 @@ export const config = {
   propertiesCollectionId:
     process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
 };
+
+export const analyticsCollectionId = process.env.EXPO_PUBLIC_APPWRITE_ANALYTICS_COLLECTION_ID;
+
 const client = new Client()
   .setEndpoint(config.endpoint!)
   .setProject(config.projectId!)
@@ -144,7 +147,6 @@ export async function getProperties({
   }
 }
 
-// write function to get property by id
 export async function getPropertyById({ id }: { id: string }) {
   try {
     const result = await databases.getDocument(
@@ -158,3 +160,40 @@ export async function getPropertyById({ id }: { id: string }) {
     return null;
   }
 }
+
+class AnalyticsService {
+    private static instance: AnalyticsService;
+
+    static getInstance(): AnalyticsService {
+        if (!AnalyticsService.instance) {
+            AnalyticsService.instance = new AnalyticsService();
+        }
+        return AnalyticsService.instance;
+    }
+
+    async track(event: string, properties: Record<string, any> = {}) {
+        try {
+            const documentData = {
+                event,
+                properties: JSON.stringify(properties),
+                timestamp: new Date().toISOString(),
+                sessionId: `session_${Date.now()}`,
+            };
+
+            await databases.createDocument(
+                config.databaseId!,
+                analyticsCollectionId!,
+                ID.unique(),
+                documentData
+            );
+
+            if (__DEV__) {
+                console.log(`[Analytics] ${event}`, properties);
+            }
+        } catch (error) {
+            console.warn('Analytics tracking failed:', error);
+        }
+    }
+}
+
+export const analytics = AnalyticsService.getInstance();
