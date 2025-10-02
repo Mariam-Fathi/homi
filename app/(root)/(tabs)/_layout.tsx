@@ -62,6 +62,14 @@ const TabsLayout = () => {
           ),
         }}
       />
+        <Tabs.Screen
+            name="analytics-dashboard"
+            options={{
+                tabBarIcon: ({ focused }) => (
+                    <TabIcon focused={focused} icon={icons.calendar} title="Explore" />
+                ),
+            }}
+        />
       <Tabs.Screen
         name="profile"
         options={{
