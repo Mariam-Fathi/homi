@@ -15,13 +15,11 @@ const COLLECTIONS = {
 };
 
 const propertyTypes = [
-    "House",
-    "Townhouse",
-    "Condo",
-    "Duplex",
-    "Studio",
-    "Appartment",
-    "Other",
+    "Compounds",
+    "Apartments",
+    "Villas",
+    "Townhouses",
+    "Commercial",
 ];
 
 const facilities = [

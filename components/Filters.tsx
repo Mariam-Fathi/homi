@@ -31,7 +31,7 @@ const Filters = () => {
         <TouchableOpacity
           onPress={() => handleCategoryPress(item.category)}
           key={index}
-          className={`flex flex-col items-start mr-4 px-4 py-2 rounded-full ${
+          className={`flex flex-col items-start mr-1 px-4 py-2 rounded-full ${
             selectedCategory === item.category
               ? "bg-primary-300"
               : "bg-primary-100 border border-primary-200"

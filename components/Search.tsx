@@ -30,10 +30,6 @@ const Search = () => {
           className="text-sm font-rubik text-black-300 ml-2 flex-1"
         />
       </View>
-
-      <TouchableOpacity>
-        <Image source={icons.filter} className="size-5" />
-      </TouchableOpacity>
     </View>
   );
 };
