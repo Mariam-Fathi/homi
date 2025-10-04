@@ -22,6 +22,7 @@ export const config = {
   agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
   propertiesCollectionId:
     process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
+    userActivityCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_ACTIVITY_ID,
 };
 
 export const analyticsCollectionId = process.env.EXPO_PUBLIC_APPWRITE_ANALYTICS_COLLECTION_ID;
@@ -161,154 +162,22 @@ export async function getPropertyById({ id }: { id: string }) {
   }
 }
 
-class AnalyticsService {
-    private static instance: AnalyticsService;
-
-    static getInstance(): AnalyticsService {
-        if (!AnalyticsService.instance) {
-            AnalyticsService.instance = new AnalyticsService();
-        }
-        return AnalyticsService.instance;
-    }
-
-    async track(event: string, properties: Record<string, any> = {}) {
-        try {
-            const documentData = {
-                event,
-                properties: JSON.stringify(properties),
-                timestamp: new Date().toISOString(),
-                sessionId: `session_${Date.now()}`,
-            };
-
-            await databases.createDocument(
-                config.databaseId!,
-                analyticsCollectionId!,
-                ID.unique(),
-                documentData
-            );
-
-            if (__DEV__) {
-                console.log(`[Analytics] ${event}`, properties);
-            }
-        } catch (error) {
-            console.warn('Analytics tracking failed:', error);
-        }
-    }
-}
-
-export const analytics = AnalyticsService.getInstance();
-
-// Add to your appwrite.ts file
-export async function getAnalyticsData(timeRange: string = '7d') {
+export async function trackUserActivity(action:string, property:any, userId:string): Promise<void> {
     try {
-        // Calculate date range
-        const now = new Date();
-        const startDate = new Date();
-
-        switch(timeRange) {
-            case '1d':
-                startDate.setDate(now.getDate() - 1);
-                break;
-            case '7d':
-                startDate.setDate(now.getDate() - 7);
-                break;
-            case '30d':
-                startDate.setDate(now.getDate() - 30);
-                break;
-            default:
-                startDate.setDate(now.getDate() - 7);
-        }
-
-        const queries = [
-            Query.orderDesc('$createdAt'),
-            Query.greaterThan('timestamp', startDate.toISOString())
-        ];
-
-        const result = await databases.listDocuments(
+        await databases.createDocument(
             config.databaseId!,
-            analyticsCollectionId!,
-            queries
+            config.userActivityCollectionId!,
+            ID.unique(),
+            {
+                userId: userId,
+                propertyId: property.$id,
+                action: action,
+                propertyType: property.type
+            }
         );
 
-        return result.documents;
+        console.log(`Tracked ${action} for property: ${property.name}`);
     } catch (error) {
-        console.error('Error fetching analytics:', error);
-        return [];
+        console.error('Error tracking user activity:', error);
     }
-}
-
-export async function getCardAnalyticsSummary() {
-    try {
-        const analyticsData = await getAnalyticsData('7d');
-
-        const summary = {
-            totalViews: analyticsData.filter(doc => doc.event === 'card_viewed').length,
-            totalClicks: analyticsData.filter(doc => doc.event === 'card_clicked').length,
-            totalFavorites: analyticsData.filter(doc => doc.event === 'card_favorited').length,
-            popularProperties: getPopularProperties(analyticsData),
-            dailyStats: getDailyStats(analyticsData),
-        };
-
-        return summary;
-    } catch (error) {
-        console.error('Error generating analytics summary:', error);
-        return null;
-    }
-}
-
-function getPopularProperties(analyticsData: any[]) {
-    const propertyCounts: { [key: string]: { name: string; views: number; clicks: number; favorites: number } } = {};
-
-    analyticsData.forEach(doc => {
-        const properties = JSON.parse(doc.properties);
-        const itemId = properties.itemId;
-        const itemName = properties.itemName;
-
-        if (!propertyCounts[itemId]) {
-            propertyCounts[itemId] = { name: itemName, views: 0, clicks: 0, favorites: 0 };
-        }
-
-        switch(doc.event) {
-            case 'card_viewed':
-                propertyCounts[itemId].views++;
-                break;
-            case 'card_clicked':
-                propertyCounts[itemId].clicks++;
-                break;
-            case 'card_favorited':
-                propertyCounts[itemId].favorites++;
-                break;
-        }
-    });
-
-    return Object.entries(propertyCounts)
-        .map(([id, data]) => ({ id, ...data }))
-        .sort((a, b) => b.views - a.views)
-        .slice(0, 5); // Top 5 properties
-}
-
-function getDailyStats(analyticsData: any[]) {
-    const dailyStats: { [key: string]: { views: number; clicks: number; favorites: number } } = {};
-
-    analyticsData.forEach(doc => {
-        const date = new Date(doc.timestamp).toDateString();
-
-        if (!dailyStats[date]) {
-            dailyStats[date] = { views: 0, clicks: 0, favorites: 0 };
-        }
-
-        switch(doc.event) {
-            case 'card_viewed':
-                dailyStats[date].views++;
-                break;
-            case 'card_clicked':
-                dailyStats[date].clicks++;
-                break;
-            case 'card_favorited':
-                dailyStats[date].favorites++;
-                break;
-        }
-    });
-
-    return dailyStats;
 }

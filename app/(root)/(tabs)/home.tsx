@@ -134,7 +134,7 @@ const Home = () => {
             <View className="mt-5">
               <View className="flex flex-row items-center justify-between">
                 <Text className="text-xl font-rubik-bold text-black-300">
-                  Our Recommendation
+                  Properties
                 </Text>
                 <TouchableOpacity>
                   <Text className="text-base font-rubik-bold text-primary-300">
