@@ -14,8 +14,9 @@ import { logout } from "@/lib/appwrite";
 import icons from "@/constants/icons";
 import { settings } from "@/constants/data";
 import { useAuthStore } from "@/store/authStore";
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useNotification } from "@/context/NotificationContext";
+import { NewPropertiesCheck } from "@/components/NewPropertiesCheck";
 
 interface SettingsItemProp {
   icon: ImageSourcePropType;
@@ -26,25 +27,25 @@ interface SettingsItemProp {
 }
 
 const SettingsItem = ({
-  icon,
-  title,
-  onPress,
-  textStyle,
-  showArrow = true,
-}: SettingsItemProp) => (
-  <TouchableOpacity
-    onPress={onPress}
-    className="flex flex-row items-center justify-between py-3"
-  >
-    <View className="flex flex-row items-center gap-3">
-      <Image source={icon} className="size-6" />
-      <Text className={`text-lg font-rubik-medium text-black-300 ${textStyle}`}>
-        {title}
-      </Text>
-    </View>
+                        icon,
+                        title,
+                        onPress,
+                        textStyle,
+                        showArrow = true,
+                      }: SettingsItemProp) => (
+    <TouchableOpacity
+        onPress={onPress}
+        className="flex flex-row items-center justify-between py-3"
+    >
+      <View className="flex flex-row items-center gap-3">
+        <Image source={icon} className="size-6" tintColor={'black'} />
+        <Text className={`text-lg font-rubik-medium text-black-300 ${textStyle}`}>
+          {title}
+        </Text>
+      </View>
 
-    {showArrow && <Image source={icons.rightArrow} className="size-5" />}
-  </TouchableOpacity>
+      {showArrow && <Image source={icons.rightArrow} className="size-5" />}
+    </TouchableOpacity>
 );
 
 const Profile = () => {
@@ -52,8 +53,8 @@ const Profile = () => {
 
   const { user, fetchCurrentUser, isAuthenticated } = useAuthStore();
 
-  const handleNotification = () => {
-    Alert.alert(expoPushToken!);
+  const handleNotificationPress = () => {
+    router.push('../notifications');
   };
 
   const handleLogout = async () => {
@@ -72,54 +73,59 @@ const Profile = () => {
   }
 
   return (
-    <SafeAreaView className="h-full bg-white">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-24 px-6"
-      >
-        <View className="flex flex-row items-center justify-between mt-5">
-          <Text className="text-xl font-rubik-bold">Profile</Text>
-          <Pressable onPress={handleNotification}>
-            <Image source={icons.bell} className="size-5" />
-          </Pressable>
-        </View>
+      <SafeAreaView className="h-full bg-white">
+        <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerClassName="pb-24 px-6"
+        >
+          <View className="flex flex-row items-center justify-between mt-5">
+            <View className={'flex-row gap-2 items-center'}>
+              <TouchableOpacity
+                  onPress={() => router.back()}
+                  className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
+              >
+                <Image source={icons.backArrow} className="size-5" />
+              </TouchableOpacity>
 
-        <View className="flex flex-row justify-center mt-5">
-          <View className="flex flex-col items-center relative mt-5">
-            <Image
-              source={{ uri: user?.avatar }}
-              className="size-44 relative rounded-full"
-            />
-            <TouchableOpacity className="absolute bottom-11 right-2">
-              <Image source={icons.edit} className="size-9" />
-            </TouchableOpacity>
+              <Text className="text-2xl mr-2 text-center font-rubik text-black-300">
+                Profile
+              </Text>
+            </View>
 
-            <Text className="text-2xl font-rubik-bold mt-2">{user?.name}</Text>
+            <Image source={icons.bell} className="w-6 h-6" />
           </View>
-        </View>
 
-        <View className="flex flex-col mt-10">
-          <SettingsItem icon={icons.calendar} title="My Bookings" />
-          <SettingsItem icon={icons.wallet} title="Payments" />
-        </View>
 
-        <View className="flex flex-col mt-5 border-t pt-5 border-primary-200">
-          {settings.slice(2).map((item, index) => (
-            <SettingsItem key={index} {...item} />
-          ))}
-        </View>
+          <View className="flex flex-row justify-center mt-5">
+            <View className="flex flex-col items-center relative mt-5">
+              <Image
+                  source={{ uri: user?.avatar }}
+                  className="size-44 relative rounded-full"
+              />
 
-        <View className="flex flex-col border-t mt-5 pt-5 border-primary-200">
-          <SettingsItem
-            icon={icons.logout}
-            title="Logout"
-            textStyle="text-danger"
-            showArrow={false}
-            onPress={handleLogout}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+              <Text className="text-2xl font-rubik mt-2">{user?.name}</Text>
+            </View>
+          </View>
+
+          <NewPropertiesCheck />
+
+          <View className="flex flex-col border-t pt-5 border-primary-200 mt-5">
+            {settings.map((item, index) => (
+                <SettingsItem key={index} {...item} />
+            ))}
+          </View>
+
+          <View className="flex flex-col border-t mt-5 pt-5 border-primary-200">
+            <SettingsItem
+                icon={icons.logout}
+                title="Logout"
+                textStyle="text-danger"
+                showArrow={false}
+                onPress={handleLogout}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
   );
 };
 

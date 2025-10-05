@@ -20,7 +20,10 @@ export const useFavorites = (property: Models.Document) => {
         if (!user?.$id) return;
 
         try {
-            const favorited = await isPropertyFavorited(user.$id, property.$id);
+            const favorited = await isPropertyFavorited({
+                userId: user.$id,
+                propertyId: property.$id
+            });
             setIsSaved(favorited);
         } catch (error) {
             console.error('Error checking favorite status:', error);
@@ -38,10 +41,16 @@ export const useFavorites = (property: Models.Document) => {
         setIsLoading(true);
         try {
             if (isSaved) {
-                await removeFromFavorites(user.$id, property.$id);
+                await removeFromFavorites({
+                    userId: user.$id,
+                    propertyId: property.$id
+                });
                 setIsSaved(false);
             } else {
-                await addToFavorites(user.$id, property);
+                await addToFavorites({
+                    userId: user.$id,
+                    property
+                });
                 setIsSaved(true);
             }
         } catch (error) {

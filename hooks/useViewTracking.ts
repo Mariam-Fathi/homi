@@ -7,7 +7,10 @@ export const useViewTracking = (property: Models.Document) => {
 
     const handleTrackView = async () => {
         if (user?.$id) {
-            await trackUserActivity(property, user.$id);
+            await trackUserActivity({
+                property,
+                userId: user.$id
+            });
         }
     };
 

@@ -17,6 +17,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="properties/[id]" />
         <Stack.Screen name="success-payment" />
+        <Stack.Screen name="notifications"  />
       </Stack>
     </NotificationProvider>
   );

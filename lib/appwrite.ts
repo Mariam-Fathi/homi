@@ -1,3 +1,4 @@
+// lib/appwrite.ts
 import {
     Client,
     Account,
@@ -156,7 +157,7 @@ export async function getPropertyById({ id }: { id: string }) {
     }
 }
 
-export async function addToFavorites(userId: string, property: any) {
+export async function addToFavorites({ userId, property }: { userId: string; property: any }) {
     try {
         const existingFav = await databases.listDocuments(
             config.databaseId!,
@@ -187,7 +188,7 @@ export async function addToFavorites(userId: string, property: any) {
     }
 }
 
-export async function removeFromFavorites(userId: string, propertyId: string) {
+export async function removeFromFavorites({ userId, propertyId }: { userId: string; propertyId: string }) {
     try {
         const favorites = await databases.listDocuments(
             config.databaseId!,
@@ -213,7 +214,7 @@ export async function removeFromFavorites(userId: string, propertyId: string) {
     }
 }
 
-export async function isPropertyFavorited(userId: string, propertyId: string): Promise<boolean> {
+export async function isPropertyFavorited({ userId, propertyId }: { userId: string; propertyId: string }): Promise<boolean> {
     try {
         const favorites = await databases.listDocuments(
             config.databaseId!,
@@ -228,7 +229,6 @@ export async function isPropertyFavorited(userId: string, propertyId: string): P
     }
 }
 
-// lib/appwrite.ts - Fix the function signature
 export async function getUserFavorites({ userId }: { userId: string }) {
     try {
         const favorites = await databases.listDocuments(
@@ -260,7 +260,8 @@ export async function getUserFavorites({ userId }: { userId: string }) {
         return [];
     }
 }
-export async function trackUserActivity(property: any, userId: string) {
+
+export async function trackUserActivity({ property, userId }: { property: any; userId: string }) {
     try {
         if (!config.userActivityCollectionId) {
             console.log('User activity tracking disabled');
@@ -275,11 +276,227 @@ export async function trackUserActivity(property: any, userId: string) {
                 userId: userId,
                 propertyId: property.$id,
                 action: 'viewed'
+                // No propertyData needed!
             }
         );
 
-        console.log(`Tracked view for: ${property.name}`);
+        console.log(`✅ Tracked view for: ${property.name}`);
     } catch (error) {
-        console.error('Error tracking user activity:', error);
+        console.error('❌ Error tracking user activity:', error);
+    }
+}
+export async function analyzeUserPreferences({ userId }: { userId: string }) {
+    try {
+        // Get user's recent viewing activity
+        const userActivities = await databases.listDocuments(
+            config.databaseId!,
+            config.userActivityCollectionId!,
+            [
+                Query.equal('userId', userId),
+                Query.equal('action', 'viewed'),
+                Query.orderDesc('$createdAt'),
+                Query.limit(20)
+            ]
+        );
+
+        console.log('🔍 User activities found:', userActivities.documents.length);
+
+        if (userActivities.documents.length < 3) {
+            console.log('❌ Not enough activities to analyze preferences');
+            return null;
+        }
+
+        const typeCount: { [key: string]: number } = {};
+
+        // Fetch property data for each activity using propertyId
+        for (const activity of userActivities.documents) {
+            try {
+                if (!activity.propertyId) {
+                    console.log('❌ No propertyId found for activity:', activity.$id);
+                    continue;
+                }
+
+                // Fetch the property details using propertyId
+                const property = await databases.getDocument(
+                    config.databaseId!,
+                    config.propertiesCollectionId!,
+                    activity.propertyId
+                );
+
+                if (property && property.type) {
+                    typeCount[property.type] = (typeCount[property.type] || 0) + 1;
+                    console.log(`✅ Found property type: ${property.type}`);
+                } else {
+                    console.log('❌ Could not fetch property or property has no type:', activity.propertyId);
+                }
+
+            } catch (error) {
+                console.error('❌ Error fetching property for activity:', error);
+            }
+        }
+
+        // Check if we have any valid types
+        const typeKeys = Object.keys(typeCount);
+        console.log('📊 Property types distribution:', typeCount);
+
+        if (typeKeys.length === 0) {
+            console.log('❌ No property types found in activities');
+            return null;
+        }
+
+        // Find the most viewed type
+        const favoriteType = typeKeys.reduce((a, b) =>
+            typeCount[a] > typeCount[b] ? a : b
+        );
+
+        const totalViews = Object.values(typeCount).reduce((a, b) => a + b, 0);
+        const confidence = typeCount[favoriteType] / totalViews;
+
+        console.log('🎯 Analysis result:', {
+            favoriteType,
+            confidence,
+            distribution: typeCount
+        });
+
+        if (confidence < 0.4) {
+            console.log('❌ Confidence too low:', confidence);
+            return null;
+        }
+
+        console.log('✅ User preferences analyzed successfully');
+        return {
+            type: favoriteType,
+            confidence: confidence
+        };
+    } catch (error) {
+        console.error('Error analyzing user preferences:', error);
+        return null;
+    }
+}
+
+// In your appwrite.ts
+export async function createNotification({
+                                             userId,
+                                             title,
+                                             message,
+                                             type = 'info',
+                                             relatedPropertyId
+                                         }: {
+    userId: string;
+    title: string;
+    message: string;
+    type?: 'info' | 'success' | 'warning' | 'error';
+    relatedPropertyId?: string;
+}) {
+    try {
+        const notificationData: any = {
+            userId,
+            title,
+            message,
+            type,
+            isRead: false,
+        };
+
+        // Only add relatedPropertyId if it exists
+        if (relatedPropertyId) {
+            notificationData.relatedPropertyId = relatedPropertyId;
+        }
+
+        const notification = await databases.createDocument(
+            config.databaseId!,
+            'notifications',
+            ID.unique(),
+            notificationData
+        );
+
+        console.log('📝 Database notification created:', title);
+        return notification; // Return the full notification document
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        throw error;
+    }
+}
+
+export async function getNotifications({ userId }: { userId: string }) {
+    try {
+        const notifications = await databases.listDocuments(
+            config.databaseId!,
+            'notifications',
+            [
+                Query.equal('userId', userId),
+                Query.orderDesc('$createdAt'),
+                Query.limit(50)
+            ]
+        );
+
+        return notifications.documents;
+    } catch (error) {
+        console.error('Error getting notifications:', error);
+        return [];
+    }
+}
+
+export async function markNotificationAsRead({ notificationId }: { notificationId: string }) {
+    try {
+        await databases.updateDocument(
+            config.databaseId!,
+            'notifications',
+            notificationId,
+            {
+                isRead: true
+            }
+        );
+
+        console.log('Notification marked as read');
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        throw error;
+    }
+}
+
+export async function checkAndNotifyNewProperties({ userId }: { userId: string }) {
+    try {
+        const preferences = await analyzeUserPreferences({ userId });
+
+        if (!preferences) {
+            throw new Error('Cannot determine user preferences');
+        }
+
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const newProperties = await databases.listDocuments(
+            config.databaseId!,
+            config.propertiesCollectionId!,
+            [
+                Query.equal('type', preferences.type),
+                Query.greaterThan('$createdAt', oneWeekAgo.toISOString()),
+                Query.limit(5)
+            ]
+        );
+
+        if (newProperties.documents.length === 0) {
+            throw new Error('No new properties matching your preferences');
+        }
+
+        const property = newProperties.documents[0];
+
+        // Create database notification
+        await createNotification({
+            userId: userId,
+            title: '🏠 New Property You Might Like!',
+            message: `New ${property.type} in ${property.address?.split(',')[0] || 'your area'}: ${property.name}`,
+            type: 'info',
+            relatedPropertyId: property.$id
+        });
+
+        return {
+            success: true,
+            count: newProperties.documents.length,
+            property: property // Return the property for push notification
+        };
+    } catch (error) {
+        console.error('Error checking new properties:', error);
+        throw error;
     }
 }
