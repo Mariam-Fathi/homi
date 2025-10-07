@@ -275,6 +275,7 @@ const Property = () => {
               </Text>
             </View>
             <Payment
+                propertyTitle={property?.name}
               fullName={user?.name!}
               email={user?.email!}
               amount={property?.price!}

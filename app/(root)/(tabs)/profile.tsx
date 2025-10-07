@@ -10,17 +10,19 @@ import {
   View,
 } from "react-native";
 
-import { logout } from "@/lib/appwrite";
+import {getNotifications, logout} from "@/lib/appwrite";
 import icons from "@/constants/icons";
 import { settings } from "@/constants/data";
 import { useAuthStore } from "@/store/authStore";
 import { Redirect, router } from "expo-router";
 import { useNotification } from "@/context/NotificationContext";
 import { NewPropertiesCheck } from "@/components/NewPropertiesCheck";
+import {useAppwrite} from "@/lib/useAppwrite";
 
 interface SettingsItemProp {
   icon: ImageSourcePropType;
   title: string;
+  href?: string;
   onPress?: () => void;
   textStyle?: string;
   showArrow?: boolean;
@@ -28,13 +30,14 @@ interface SettingsItemProp {
 
 const SettingsItem = ({
                         icon,
+    href,
                         title,
                         onPress,
                         textStyle,
                         showArrow = true,
                       }: SettingsItemProp) => (
     <TouchableOpacity
-        onPress={onPress}
+        onPress={()=> router.push(href as any)}
         className="flex flex-row items-center justify-between py-3"
     >
       <View className="flex flex-row items-center gap-3">
@@ -49,6 +52,7 @@ const SettingsItem = ({
 );
 
 const Profile = () => {
+
   const { notification, expoPushToken, error } = useNotification();
 
   const { user, fetchCurrentUser, isAuthenticated } = useAuthStore();
@@ -65,6 +69,17 @@ const Profile = () => {
       Alert.alert("Error", "Failed to logout");
     }
   };
+  const {
+    data: notifications,
+    refetch,
+    loading,
+  } = useAppwrite({
+    fn: getNotifications,
+    params: { userId: user?.$id || "" },
+    skip: !user?.$id,
+  });
+
+  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
   if (!isAuthenticated) return <Redirect href="/(auth)/auth" />;
 
@@ -91,8 +106,6 @@ const Profile = () => {
                 Profile
               </Text>
             </View>
-
-            <Image source={icons.bell} className="w-6 h-6" />
           </View>
 
 

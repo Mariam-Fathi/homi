@@ -14,6 +14,6 @@ async function openPaymentModal(): Promise<void> {
   router.push(url);
 }
 
-export default function Payment({ fullName, email, amount }: PaymentProps) {
+export default function Payment({ fullName, email, amount ,propertyTitle }: PaymentProps ) {
   return <TouchableOpacity onPress={openPaymentModal}></TouchableOpacity>;
 }

@@ -18,7 +18,7 @@ import NoResults from "@/components/NoResult";
 import { Card, FeaturedCard } from "@/components/Cards";
 
 import { useAppwrite } from "@/lib/useAppwrite";
-import { getLatestProperties, getProperties } from "@/lib/appwrite";
+import {getLatestProperties, getNotifications, getProperties} from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
 import seed from "@/lib/seed";
 
@@ -45,6 +45,18 @@ const Home = () => {
     },
     skip: true,
   });
+
+  const {
+    data: notifications,
+    refetch: refreshNotifications,
+    loading: notificationsLoading,
+  } = useAppwrite({
+    fn: getNotifications,
+    params: { userId: user?.$id || "" },
+    skip: !user?.$id,
+  });
+
+  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
   useEffect(() => {
     refetch({
@@ -93,7 +105,16 @@ const Home = () => {
                   </Text>
                 </View>
               </View>
-              <Image source={icons.bell} className="size-6" />
+              <TouchableOpacity onPress={()=> router.push('/payments')} className="relative">
+                <Image source={icons.bell} className="w-6 h-6" />
+                {unreadCount > 0 && (
+                    <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                      <Text className="text-white text-xs font-rubik-bold">
+                        {unreadCount}
+                      </Text>
+                    </View>
+                )}
+              </TouchableOpacity>
             </View>
 
             <Search />

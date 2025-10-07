@@ -8,11 +8,31 @@ import { PaymentProps } from "@/types/type";
 import * as Linking from "expo-linking";
 import images from "@/constants/images";
 import CustomButton from "./CustomButton";
+import {databases} from "@/lib/appwrite";
 
-const Payment = ({ fullName, email, amount }: PaymentProps) => {
+const Payment = ({ fullName, email, amount,propertyTitle }: PaymentProps) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-
   const [success, setSuccess] = useState<boolean>(false);
+
+
+    const savePaymentRecord = async () => {
+        try {
+            await databases.createDocument(
+                process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
+                process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
+                'unique()',
+                {
+                    amount: amount.toString(),
+                    status: 'completed',
+                    fullName,
+                    email,
+                    propertyTitle: propertyTitle,
+                }
+            );
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
   const openPaymentSheet = async () => {
     await initializePaymentSheet();
@@ -22,7 +42,8 @@ const Payment = ({ fullName, email, amount }: PaymentProps) => {
     if (error) {
       Alert.alert(`Error code: ${error.code}`, error.message);
     } else {
-      setSuccess(true);
+        await savePaymentRecord();
+        setSuccess(true);
     }
   };
 
@@ -74,13 +95,12 @@ const Payment = ({ fullName, email, amount }: PaymentProps) => {
           <Image source={images.check} className="w-28 h-28 mt-5" />
 
           <Text className="text-2xl text-center font-JakartaBold mt-5">
-            Booking placed successfully
+              Property Booked Successfully
           </Text>
 
           <Text className="text-md text-general-200 font-JakartaRegular text-center mt-3">
-            Thank you for your booking. Your reservation has been successfully
-            placed. Please proceed with your trip.
-          </Text>
+              Congratulations! Your property viewing has been scheduled. Our agent will contact you shortly to confirm the appointment details.
+        </Text>
 
           <CustomButton
             title="Back Home"

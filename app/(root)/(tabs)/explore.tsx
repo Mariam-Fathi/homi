@@ -16,11 +16,13 @@ import { Card } from "@/components/Cards";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResult";
 
-import { getProperties } from "@/lib/appwrite";
+import {getNotifications, getProperties} from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
+import {useAuthStore} from "@/store/authStore";
 
 const Explore = () => {
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
+  const { user } = useAuthStore();
 
   const {
     data: properties,
@@ -34,6 +36,18 @@ const Explore = () => {
     },
     skip: true,
   });
+
+  const {
+    data: notifications,
+    refetch: refreshNotifications,
+    loading: notificationsLoading,
+  } = useAppwrite({
+    fn: getNotifications,
+    params: { userId: user?.$id || "" },
+    skip: !user?.$id,
+  });
+
+  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
   useEffect(() => {
     refetch({
@@ -78,7 +92,16 @@ const Explore = () => {
                   Explore
                 </Text>
               </View>
-              <Image source={icons.bell} className="w-6 h-6" />
+              <TouchableOpacity onPress={()=> router.push('/notifications')} className="relative">
+                <Image source={icons.bell} className="w-6 h-6" />
+                {unreadCount > 0 && (
+                    <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                      <Text className="text-white text-xs font-rubik-bold">
+                        {unreadCount}
+                      </Text>
+                    </View>
+                )}
+              </TouchableOpacity>
             </View>
 
             <Search />

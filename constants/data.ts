@@ -68,14 +68,17 @@ export const settings = [
   {
     title: "Favorites",
     icon: icons.heart,
+    href: '/favorite' as const,
   },
   {
     title: "Payments",
     icon: icons.wallet,
+    href: '/payments' as const,
   },
   {
     title: "Notifications",
     icon: icons.bell,
+    href: '/notifications' as const,
   }
 ];
 

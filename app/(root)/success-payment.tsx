@@ -10,12 +10,11 @@ export default function SuccessPayment() {
       <Image source={images.check} className="w-28 h-28 mt-5" />
 
       <Text className="text-2xl text-center font-JakartaBold mt-5">
-        Booking placed successfully
+          Property Booked Successfully
       </Text>
 
       <Text className="text-md text-general-200 font-JakartaRegular text-center mt-3">
-        Thank you for your booking. Your booking has been successfully placed.
-      </Text>
+          Congratulations! Your property viewing has been scheduled. Our agent will contact you shortly to confirm the appointment details.      </Text>
 
       <CustomButton
         title="Back Home"

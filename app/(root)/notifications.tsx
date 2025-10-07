@@ -25,10 +25,6 @@ const NotificationItem = ({ notification, onPress }: {
                 !notification.isRead ? 'bg-primary-50' : 'bg-white'
             }`}
         >
-            <View className="p-2 rounded-full bg-blue-100">
-                <Image source={icons.bell} className="w-5 h-5" />
-            </View>
-
             <View className="flex-1 ml-3">
                 <Text className="text-base font-rubik-bold text-black-300">
                     {notification.title}
@@ -115,38 +111,19 @@ const Notifications = () => {
                 }
                 ListHeaderComponent={() => (
                     <View className="px-5">
-                        <View className="flex flex-row items-center justify-between mt-5">
-                            <TouchableOpacity
-                                onPress={handleBackPress}
-                                className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
-                            >
-                                <Image source={icons.backArrow} className="size-5" />
-                            </TouchableOpacity>
+                        <View className="flex flex-row items-center justify-between mt-5 mb-6">
+                            <View className={'flex-row gap-2 items-center'}>
+                                <TouchableOpacity
+                                    onPress={() => router.back()}
+                                    className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
+                                >
+                                    <Image source={icons.backArrow} className="size-5" />
+                                </TouchableOpacity>
 
-                            <Text className="text-base mr-2 text-center font-rubik-medium text-black-300">
-                                Notifications
-                            </Text>
-                            <View className="relative">
-                                <Image source={icons.bell} className="w-6 h-6" />
-                                {unreadCount > 0 && (
-                                    <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                                        <Text className="text-white text-xs font-rubik-bold">
-                                            {unreadCount}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-
-                        <View className="mt-5">
-                            <Text className="text-xl font-rubik-bold text-black-300">
-                                {notifications?.length || 0} Notifications
-                            </Text>
-                            {unreadCount > 0 && (
-                                <Text className="text-sm font-rubik text-primary-300 mt-1">
-                                    {unreadCount} unread
+                                <Text className="text-2xl mr-2 text-center font-rubik text-black-300">
+                                    Notifications
                                 </Text>
-                            )}
+                            </View>
                         </View>
                     </View>
                 )}

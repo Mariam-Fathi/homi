@@ -62,14 +62,6 @@ const TabsLayout = () => {
           ),
         }}
       />
-        <Tabs.Screen
-            name="favorite"
-            options={{
-                tabBarIcon: ({ focused }) => (
-                    <TabIcon focused={focused} icon={icons.heart} title="Favorites" />
-                ),
-            }}
-        />
       <Tabs.Screen
         name="profile"
         options={{

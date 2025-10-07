@@ -500,3 +500,19 @@ export async function checkAndNotifyNewProperties({ userId }: { userId: string }
         throw error;
     }
 }
+
+
+export const getPayments = async ({ email }: { email: string }) => {
+    try {
+        const response = await databases.listDocuments(
+            process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
+            process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
+            [
+                Query.equal('email', email),
+            ]
+        );
+        return response.documents;
+    } catch (error) {
+        throw error;
+    }
+};

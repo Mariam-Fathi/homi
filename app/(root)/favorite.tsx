@@ -13,7 +13,7 @@ import { router } from "expo-router";
 import icons from "@/constants/icons";
 import { Card } from "@/components/Cards";
 
-import { getUserFavorites } from "@/lib/appwrite";
+import {getNotifications, getUserFavorites} from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
 import { useAuthStore } from "@/store/authStore";
 import Search from "@/components/Search";
@@ -31,6 +31,17 @@ const Favorites = () => {
         skip: !user?.$id,
     });
 
+    const {
+        data: notifications,
+        refetch: refreshNotifications,
+        loading: notificationsLoading,
+    } = useAppwrite({
+        fn: getNotifications,
+        params: { userId: user?.$id || "" },
+        skip: !user?.$id,
+    });
+
+    const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
     useEffect(() => {
         if (user?.$id) {
             refetch({ userId: user.$id });
@@ -113,7 +124,6 @@ const Favorites = () => {
                                     Favorites
                                 </Text>
                             </View>
-                            <Image source={icons.bell} className="w-6 h-6" />
                         </View>
                         <Search/>
                     </View>
