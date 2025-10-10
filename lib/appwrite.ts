@@ -1,4 +1,3 @@
-// lib/appwrite.ts
 import {
     Client,
     Account,
@@ -21,7 +20,8 @@ export const config = {
     agentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
     propertiesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
     userActivityCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_ACTIVITY_COLLECTION_ID,
-    userFavoritesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_FAVORITES_COLLECTION_ID
+    userFavoritesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_FAVORITES_COLLECTION_ID,
+    userNotificationsCollectionId : process.env.EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID
 };
 
 const client = new Client()
@@ -237,7 +237,6 @@ export async function getUserFavorites({ userId }: { userId: string }) {
             [Query.equal('userId', userId), Query.orderDesc('$createdAt')]
         );
 
-        // For each favorite, fetch the complete property data
         const favoriteProperties = await Promise.all(
             favorites.documents.map(async (favorite) => {
                 try {
@@ -276,7 +275,6 @@ export async function trackUserActivity({ property, userId }: { property: any; u
                 userId: userId,
                 propertyId: property.$id,
                 action: 'viewed'
-                // No propertyData needed!
             }
         );
 
@@ -287,7 +285,6 @@ export async function trackUserActivity({ property, userId }: { property: any; u
 }
 export async function analyzeUserPreferences({ userId }: { userId: string }) {
     try {
-        // Get user's recent viewing activity
         const userActivities = await databases.listDocuments(
             config.databaseId!,
             config.userActivityCollectionId!,
@@ -308,7 +305,6 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
 
         const typeCount: { [key: string]: number } = {};
 
-        // Fetch property data for each activity using propertyId
         for (const activity of userActivities.documents) {
             try {
                 if (!activity.propertyId) {
@@ -316,7 +312,6 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
                     continue;
                 }
 
-                // Fetch the property details using propertyId
                 const property = await databases.getDocument(
                     config.databaseId!,
                     config.propertiesCollectionId!,
@@ -335,7 +330,6 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
             }
         }
 
-        // Check if we have any valid types
         const typeKeys = Object.keys(typeCount);
         console.log('📊 Property types distribution:', typeCount);
 
@@ -344,7 +338,6 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
             return null;
         }
 
-        // Find the most viewed type
         const favoriteType = typeKeys.reduce((a, b) =>
             typeCount[a] > typeCount[b] ? a : b
         );
@@ -374,7 +367,6 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
     }
 }
 
-// In your appwrite.ts
 export async function createNotification({
                                              userId,
                                              title,
@@ -397,20 +389,19 @@ export async function createNotification({
             isRead: false,
         };
 
-        // Only add relatedPropertyId if it exists
         if (relatedPropertyId) {
             notificationData.relatedPropertyId = relatedPropertyId;
         }
 
         const notification = await databases.createDocument(
             config.databaseId!,
-            'notifications',
+            config.userNotificationsCollectionId,
             ID.unique(),
             notificationData
         );
 
         console.log('📝 Database notification created:', title);
-        return notification; // Return the full notification document
+        return notification;
     } catch (error) {
         console.error('Error creating notification:', error);
         throw error;

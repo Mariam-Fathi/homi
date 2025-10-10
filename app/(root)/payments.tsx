@@ -117,7 +117,7 @@ const Payments = () => {
                         <View className="flex flex-row items-center justify-between mt-5 mb-6">
                             <View className={'flex-row gap-2 items-center'}>
                                 <TouchableOpacity
-                                    onPress={() => router.back()}
+                                    onPress={handleBackPress}
                                     className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
                                 >
                                     <Image source={icons.backArrow} className="size-5" />
@@ -125,15 +125,6 @@ const Payments = () => {
 
                                 <Text className="text-2xl mr-2 text-center font-rubik text-black-300">
                                     Payments
-                                </Text>
-                            </View>
-
-                            <View className="flex items-end">
-                                <Text className="text-sm font-rubik text-gray-600">
-                                    Total Spent
-                                </Text>
-                                <Text className="text-lg font-rubik-bold text-primary-300">
-                                    EGP {totalSpent.toFixed(2)}
                                 </Text>
                             </View>
                         </View>
