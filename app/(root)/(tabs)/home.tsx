@@ -18,7 +18,12 @@ import NoResults from "@/components/NoResult";
 import { Card, FeaturedCard } from "@/components/Cards";
 
 import { useAppwrite } from "@/lib/useAppwrite";
-import {getLatestProperties, getNotifications, getProperties} from "@/lib/appwrite";
+import {
+  getLatestProperties,
+  getNotifications,
+  getProperties,
+  logout,
+} from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
 import seed from "@/lib/seed";
 
@@ -105,14 +110,17 @@ const Home = () => {
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={()=> router.push('/payments')} className="relative">
+              <TouchableOpacity
+                onPress={() => router.push("/notifications")}
+                className="relative"
+              >
                 <Image source={icons.bell} className="w-6 h-6" />
                 {unreadCount > 0 && (
-                    <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                      <Text className="text-white text-xs font-rubik-bold">
-                        {unreadCount}
-                      </Text>
-                    </View>
+                  <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                    <Text className="text-white text-xs font-rubik-bold">
+                      {unreadCount}
+                    </Text>
+                  </View>
                 )}
               </TouchableOpacity>
             </View>
@@ -157,7 +165,7 @@ const Home = () => {
                 <Text className="text-xl font-rubik-bold text-black-300">
                   Properties
                 </Text>
-                <TouchableOpacity onPress={()=>router.push(`/explore`)}>
+                <TouchableOpacity onPress={() => router.push(`/explore`)}>
                   <Text className="text-base font-rubik-bold text-primary-300">
                     See all
                   </Text>
