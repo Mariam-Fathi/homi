@@ -5,9 +5,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from "react-native";
-import { useEffect } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useCallback, useState, useRef } from "react";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
@@ -22,13 +23,13 @@ import {
   getLatestProperties,
   getNotifications,
   getProperties,
-  logout,
 } from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
-import seed from "@/lib/seed";
 
 const Home = () => {
   const { user } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
+  const isMountedRef = useRef(false);
 
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
 
@@ -63,13 +64,78 @@ const Home = () => {
 
   const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
+  // Use ref to track if component is mounted to prevent infinite loops
   useEffect(() => {
-    refetch({
-      filter: params.filter!,
-      query: params.query!,
-      limit: 6,
-    });
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Refetch properties when filter or query changes
+  useEffect(() => {
+    if (isMountedRef.current) {
+      refetch({
+        filter: params.filter!,
+        query: params.query!,
+        limit: 6,
+      });
+    }
   }, [params.filter, params.query]);
+
+  // Create a stable callback for refreshing notifications
+  const handleRefreshNotifications = useCallback(async () => {
+    if (user?.$id) {
+      await refreshNotifications({ userId: user.$id });
+    }
+  }, [user?.$id, refreshNotifications]);
+
+  // Refetch notifications when screen comes into focus - with proper cleanup
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.$id) return;
+
+      let isActive = true;
+
+      const fetchNotifications = async () => {
+        try {
+          if (isActive) {
+            await refreshNotifications({ userId: user.$id });
+          }
+        } catch (error) {
+          console.error("Failed to refresh notifications:", error);
+        }
+      };
+
+      fetchNotifications();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user?.$id]) // Only depend on user?.$id, not refreshNotifications
+  );
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Refresh notifications with proper parameters
+      if (user?.$id) {
+        await refreshNotifications({ userId: user.$id });
+      }
+      
+      // Refresh properties with current parameters
+      await refetch({
+        filter: params.filter!,
+        query: params.query!,
+        limit: 6,
+      });
+    } catch (error) {
+      console.error("Refresh error:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshNotifications, refetch, params.filter, params.query, user?.$id]);
 
   const handleCardPress = (id: string) => router.push(`/properties/${id}`);
 
@@ -85,6 +151,9 @@ const Home = () => {
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" className="text-primary-300 mt-5" />
@@ -99,6 +168,7 @@ const Home = () => {
                 <Image
                   source={{ uri: user?.avatar }}
                   className="size-12 rounded-full"
+                  resizeMode="cover"
                 />
 
                 <View className="flex flex-col items-start ml-2 justify-center">
@@ -132,7 +202,7 @@ const Home = () => {
                 <Text className="text-xl font-rubik-bold text-black-300">
                   Featured
                 </Text>
-                <TouchableOpacity onPress={seed}>
+                <TouchableOpacity onPress={() => router.push(`/explore`)}>
                   <Text className="text-base font-rubik-bold text-primary-300">
                     See all
                   </Text>

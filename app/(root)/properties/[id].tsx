@@ -20,6 +20,7 @@ import { getPropertyById } from "@/lib/appwrite";
 import StripeProvider from "../../../components/StripeProvider";
 import { useAuthStore } from "@/store/authStore";
 import Payment from "@/components/Payment";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 const Property = () => {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -69,13 +70,7 @@ const Property = () => {
                   <Image source={icons.backArrow} className="size-5" />
                 </TouchableOpacity>
 
-                <View className="flex flex-row items-center gap-3">
-                  <Image
-                    source={icons.heart}
-                    className="size-7"
-                    tintColor={"#191D31"}
-                  />
-                </View>
+                {property && <FavoriteButton property={property} />}
               </View>
             </View>
           </View>

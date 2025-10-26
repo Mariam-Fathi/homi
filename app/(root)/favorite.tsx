@@ -1,11 +1,11 @@
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    SafeAreaView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useEffect } from "react";
 import { router } from "expo-router";
@@ -13,124 +13,123 @@ import { router } from "expo-router";
 import icons from "@/constants/icons";
 import { Card } from "@/components/Cards";
 
-import {getNotifications, getUserFavorites} from "@/lib/appwrite";
+import { getNotifications, getUserFavorites } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
 import { useAuthStore } from "@/store/authStore";
 import Search from "@/components/Search";
 
 const Favorites = () => {
-    const { user } = useAuthStore();
+  const { user } = useAuthStore();
 
-    const {
-        data: favorites,
-        refetch,
-        loading,
-    } = useAppwrite({
-        fn: getUserFavorites,
-        params: { userId: user?.$id || "" },
-        skip: !user?.$id,
-    });
+  const {
+    data: favorites,
+    refetch,
+    loading,
+  } = useAppwrite({
+    fn: getUserFavorites,
+    params: { userId: user?.$id || "" },
+    skip: !user?.$id,
+  });
 
-    const {
-        data: notifications,
-        refetch: refreshNotifications,
-        loading: notificationsLoading,
-    } = useAppwrite({
-        fn: getNotifications,
-        params: { userId: user?.$id || "" },
-        skip: !user?.$id,
-    });
+  const {
+    data: notifications,
+    refetch: refreshNotifications,
+    loading: notificationsLoading,
+  } = useAppwrite({
+    fn: getNotifications,
+    params: { userId: user?.$id || "" },
+    skip: !user?.$id,
+  });
 
-    const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
-    useEffect(() => {
-        if (user?.$id) {
-            refetch({ userId: user.$id });
+  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
+  useEffect(() => {
+    if (user?.$id) {
+      refetch({ userId: user.$id });
+    }
+  }, [user?.$id]);
+
+  const handleCardPress = (property: any) => {
+    router.push(`/properties/${property.$id}`);
+  };
+
+  const handleBackPress = () => {
+    router.back();
+  };
+
+  return (
+    <SafeAreaView className="h-full bg-white">
+      <FlatList
+        data={favorites || []}
+        numColumns={2}
+        renderItem={({ item }) => (
+          <Card item={item} onPress={() => handleCardPress(item)} />
+        )}
+        keyExtractor={(item) => item.$id}
+        contentContainerClassName="pb-32"
+        columnWrapperClassName="flex gap-5 px-5"
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" className="text-primary-300 mt-5" />
+          ) : !user?.$id ? (
+            <View className="flex items-center justify-center mt-20 px-5">
+              <Image
+                source={icons.heart}
+                className="w-24 h-24 mb-4"
+                tintColor="#9CA3AF"
+              />
+              <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
+                Please Log In
+              </Text>
+              <Text className="text-base text-black-100 mt-2 text-center">
+                Sign in to view your favorite properties
+              </Text>
+              <TouchableOpacity
+                className="bg-primary-300 px-6 py-3 rounded-full mt-6"
+                onPress={() => router.push("/(auth)/auth")}
+              >
+                <Text className="text-white font-rubik-bold text-base">
+                  Log In
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View className="flex items-center justify-center mt-20 px-5">
+              <Image
+                source={icons.heart}
+                className="w-24 h-24 mb-4"
+                tintColor="#9CA3AF"
+              />
+              <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
+                No Favorites Yet
+              </Text>
+              <Text className="text-base text-black-100 mt-2 text-center">
+                Properties you save will appear here
+              </Text>
+            </View>
+          )
         }
-    }, [user?.$id]);
+        ListHeaderComponent={() => (
+          <View className="px-5">
+            <View className="flex flex-row items-center justify-between mt-5">
+              <View className={"flex-row gap-2 items-center"}>
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
+                >
+                  <Image source={icons.backArrow} className="size-5" />
+                </TouchableOpacity>
 
-    const handleCardPress = (property: any) => {
-        router.push(`/properties/${property.$id}`);
-    };
-
-    const handleBackPress = () => {
-        router.back();
-    };
-
-    return (
-        <SafeAreaView className="h-full bg-white">
-            <FlatList
-                data={favorites || []}
-                numColumns={2}
-                renderItem={({ item }) => (
-                    <Card item={item} onPress={() => handleCardPress(item)} />
-                )}
-                keyExtractor={(item) => item.$id}
-                contentContainerClassName="pb-32"
-                columnWrapperClassName="flex gap-5 px-5"
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                    loading ? (
-                        <ActivityIndicator size="large" className="text-primary-300 mt-5" />
-                    ) : !user?.$id ? (
-                        <View className="flex items-center justify-center mt-20 px-5">
-                            <Image
-                                source={icons.heart}
-                                className="w-24 h-24 mb-4"
-                                tintColor="#9CA3AF"
-                            />
-                            <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
-                                Please Log In
-                            </Text>
-                            <Text className="text-base text-black-100 mt-2 text-center">
-                                Sign in to view your favorite properties
-                            </Text>
-                            <TouchableOpacity
-                                className="bg-primary-300 px-6 py-3 rounded-full mt-6"
-                                onPress={() => router.push('/(auth)/auth')}
-                            >
-                                <Text className="text-white font-rubik-bold text-base">
-                                    Log In
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : (
-                        <View className="flex items-center justify-center mt-20 px-5">
-                            <Image
-                                source={icons.heart}
-                                className="w-24 h-24 mb-4"
-                                tintColor="#9CA3AF"
-                            />
-                            <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
-                                No Favorites Yet
-                            </Text>
-                            <Text className="text-base text-black-100 mt-2 text-center">
-                                Properties you save will appear here
-                            </Text>
-                        </View>
-                    )
-                }
-                ListHeaderComponent={() => (
-                    <View className="px-5">
-                        <View className="flex flex-row items-center justify-between mt-5">
-                            <View className={'flex-row gap-2 items-center'}>
-                                <TouchableOpacity
-                                    onPress={() => router.back()}
-                                    className="flex flex-row bg-primary-200 rounded-full size-11 items-center justify-center"
-                                >
-                                    <Image source={icons.backArrow} className="size-5" />
-                                </TouchableOpacity>
-
-                                <Text className="text-2xl mr-2 text-center font-rubik text-black-300">
-                                    Favorites
-                                </Text>
-                            </View>
-                        </View>
-                        <Search/>
-                    </View>
-                )}
-            />
-        </SafeAreaView>
-    );
+                <Text className="text-2xl mr-2 text-center font-rubik text-black-300">
+                  Favorites
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
 };
 
 export default Favorites;
