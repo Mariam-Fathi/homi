@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useEffect, useCallback, useRef } from "react";
-import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useEffect, useRef } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
@@ -16,14 +16,14 @@ import { Card } from "@/components/Cards";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResult";
 
-import { getNotifications, getProperties } from "@/lib/appwrite";
+import { getProperties } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
-import { useAuthStore } from "@/store/authStore";
+import { useNotificationsBadge } from "@/hooks/useNotificationsBadge";
 
 const Explore = () => {
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
-  const { user } = useAuthStore();
   const isMountedRef = useRef(false);
+  const { unreadCount } = useNotificationsBadge();
 
   const {
     data: properties,
@@ -38,19 +38,6 @@ const Explore = () => {
     skip: true,
   });
 
-  const {
-    data: notifications,
-    refetch: refreshNotifications,
-    loading: notificationsLoading,
-  } = useAppwrite({
-    fn: getNotifications,
-    params: { userId: user?.$id || "" },
-    skip: !user?.$id,
-  });
-
-  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
-
-  // Use ref to track if component is mounted to prevent infinite loops
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -58,7 +45,6 @@ const Explore = () => {
     };
   }, []);
 
-  // Refetch properties when filter or query changes
   useEffect(() => {
     if (isMountedRef.current) {
       refetch({
@@ -66,34 +52,9 @@ const Explore = () => {
         query: params.query!,
       });
     }
-  }, [params.filter, params.query]);
+  }, [params.filter, params.query, refetch]);
 
-  // Refetch notifications when screen comes into focus - with proper cleanup
-  useFocusEffect(
-    useCallback(() => {
-      if (!user?.$id) return;
-
-      let isActive = true;
-
-      const fetchNotifications = async () => {
-        try {
-          if (isActive) {
-            await refreshNotifications({ userId: user.$id });
-          }
-        } catch (error) {
-          console.error("Failed to refresh notifications:", error);
-        }
-      };
-
-      fetchNotifications();
-
-      return () => {
-        isActive = false;
-      };
-    }, [user?.$id]) // Only depend on user?.$id, not refreshNotifications
-  );
-
-  const handleCardPress = () => {};
+  const handleCardPress = (id: string) => router.push(`/properties/${id}`);
 
   return (
     <SafeAreaView className="h-full bg-white">
@@ -101,7 +62,7 @@ const Explore = () => {
         data={properties}
         numColumns={2}
         renderItem={({ item }) => (
-          <Card item={item} onPress={handleCardPress} />
+          <Card item={item} onPress={() => handleCardPress(item.$id)} />
         )}
         keyExtractor={(item) => item.$id}
         contentContainerClassName="pb-32"
