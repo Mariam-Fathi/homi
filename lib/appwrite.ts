@@ -10,6 +10,7 @@ import {
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 import * as Notifications from "expo-notifications";
+import type { Property, AppwriteNotification, UserPreferenceResult, DeleteAccountResult } from "@/types/appwrite";
 
 export const config = {
   platform: "com.mf.homihunt",
@@ -167,7 +168,7 @@ export async function addToFavorites({
   property,
 }: {
   userId: string;
-  property: any;
+  property: Property;
 }) {
   try {
     const existingFav = await databases.listDocuments(
@@ -287,7 +288,7 @@ export async function trackUserActivity({
   property,
   userId,
 }: {
-  property: any;
+  property: Property;
   userId: string;
 }) {
   try {
@@ -312,7 +313,7 @@ export async function trackUserActivity({
     console.error("❌ Error tracking user activity:", error);
   }
 }
-export async function analyzeUserPreferences({ userId }: { userId: string }) {
+export async function analyzeUserPreferences({ userId }: { userId: string }): Promise<UserPreferenceResult | null> {
   try {
     if (!config.userActivityCollectionId) {
       console.log("📊 User activity tracking not configured");
@@ -406,11 +407,12 @@ export async function analyzeUserPreferences({ userId }: { userId: string }) {
   }
 }
 
-export async function getNotifications({ userId }: { userId: string }) {
+export async function getNotifications({ userId }: { userId: string }): Promise<AppwriteNotification[]> {
   try {
+    if (!config.userNotificationsCollectionId) return [];
     const notifications = await databases.listDocuments(
       config.databaseId!,
-      "notifications",
+      config.userNotificationsCollectionId,
       [
         Query.equal("userId", userId),
         Query.orderDesc("$createdAt"),
@@ -431,9 +433,10 @@ export async function markNotificationAsRead({
   notificationId: string;
 }) {
   try {
+    if (!config.userNotificationsCollectionId) throw new Error("Notifications collection not configured");
     await databases.updateDocument(
       config.databaseId!,
-      "notifications",
+      config.userNotificationsCollectionId,
       notificationId,
       {
         isRead: true,
@@ -550,7 +553,7 @@ export const getPayments = async ({ email }: { email: string }) => {
     throw error;
   }
 };
-export const deleteAccount = async () => {
+export const deleteAccount = async (): Promise<DeleteAccountResult> => {
   try {
     const currentUser = await account.get();
 
@@ -721,7 +724,7 @@ export async function createNotification({
   sendPush?: boolean;
 }) {
   try {
-    const notificationData: any = {
+    const notificationData: Record<string, unknown> = {
       userId,
       title,
       message,
