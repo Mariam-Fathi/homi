@@ -1,5 +1,6 @@
 import { getCurrentUser, logout as appwriteLogout, deleteAccount } from "@/lib/appwrite";
 import { create } from "zustand";
+import type { DeleteAccountResult } from "@/types/appwrite";
 
 interface StoreType {
   isAuthenticated: boolean;
@@ -7,7 +8,7 @@ interface StoreType {
   user: User | null;
   fetchCurrentUser: () => void;
   logout: () => void;
-  deleteAccount: () => Promise<{success: boolean; message: string; details?: any}>;
+  deleteAccount: () => Promise<DeleteAccountResult>;
 }
 
 interface User {
@@ -45,7 +46,7 @@ export const useAuthStore = create<StoreType>((set) => ({
       console.error("Logout error:", error);
     }
   },
- deleteAccount: async (): Promise<{success: boolean; message: string; details?: any}> => {
+  deleteAccount: async (): Promise<DeleteAccountResult> => {
   try {
     set({ loading: true });
     const result = await deleteAccount();
