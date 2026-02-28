@@ -77,12 +77,12 @@ const DeleteAccountModal = ({
           onPress: async () => {
             try {
               setIsDeleting(true);
-              const success = await deleteAccount();
+              const result = await deleteAccount();
 
-              if (success) {
+              if (result?.success) {
                 Alert.alert(
                   "Account Deleted",
-                  "Your account has been permanently deleted.",
+                  result.message ?? "Your account has been permanently deleted.",
                   [{ text: "OK" }]
                 );
                 onClose();
@@ -90,7 +90,7 @@ const DeleteAccountModal = ({
               } else {
                 Alert.alert(
                   "Deletion Failed",
-                  "Failed to delete account. Please try again."
+                  result?.message ?? "Failed to delete account. Please try again."
                 );
               }
             } catch (error) {
