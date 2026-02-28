@@ -1,20 +1,33 @@
 import { Alert } from "react-native";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
-interface UseAppwriteOptions<T, P extends Record<string, string | number>> {
+/**
+ * Options for useAppwrite.
+ * - fn: async function that takes params and returns data (e.g. getProperties, getPropertyById).
+ * - params: initial/current params. When these change (by serialized key), a refetch is triggered if !skip.
+ * - skip: if true, initial fetch and param-based refetch are disabled; call refetch() manually when needed.
+ */
+interface UseAppwriteOptions<T, P extends Record<string, string | number | undefined>> {
   fn: (params: P) => Promise<T>;
   params?: P;
   skip?: boolean;
 }
 
-interface UseAppwriteReturn<T, P> {
+interface UseAppwriteReturn<T, P extends Record<string, string | number | undefined>> {
   data: T | null;
   loading: boolean;
   error: string | null;
   refetch: (newParams: P) => Promise<void>;
 }
 
-export const useAppwrite = <T, P extends Record<string, string | number>>({
+/**
+ * Generic data-fetching hook for Appwrite (or any async fn with params).
+ * - Runs initial fetch when !skip. When `params` change (by serialized key), triggers a refetch so screens
+ *   don't need a separate useEffect for filter/query changes.
+ * - Skip: use skip=true when params are not ready (e.g. no userId); then call refetch(newParams) when ready.
+ * - Refetch: always available for pull-to-refresh or manual refresh.
+ */
+export const useAppwrite = <T, P extends Record<string, string | number | undefined>>({
   fn,
   params = {} as P,
   skip = false,
@@ -22,6 +35,8 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(!skip);
   const [error, setError] = useState<string | null>(null);
+  const paramsKeyRef = useRef<string>("");
+  const isMountedRef = useRef(true);
 
   const fetchData = useCallback(
     async (fetchParams: P) => {
@@ -30,26 +45,43 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
 
       try {
         const result = await fn(fetchParams);
-        setData(result);
+        if (isMountedRef.current) setData(result);
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "An unknown error occurred";
-        setError(errorMessage);
+        if (isMountedRef.current) setError(errorMessage);
         Alert.alert("Error", errorMessage);
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) setLoading(false);
       }
     },
     [fn]
   );
 
+  const paramsKey = JSON.stringify(params ?? {});
+
   useEffect(() => {
-    if (!skip) {
-      fetchData(params);
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  const refetch = async (newParams: P) => await fetchData(newParams);
+  // Single effect: when !skip and paramsKey changed, refetch (includes initial mount)
+  useEffect(() => {
+    if (skip) return;
+    if (paramsKeyRef.current === paramsKey) return;
+    paramsKeyRef.current = paramsKey;
+    fetchData(params);
+  }, [paramsKey, skip, fetchData, params]);
+
+  const refetch = useCallback(
+    async (newParams: P) => {
+      paramsKeyRef.current = JSON.stringify(newParams ?? {});
+      await fetchData(newParams);
+    },
+    [fetchData]
+  );
 
   return { data, loading, error, refetch };
 };
