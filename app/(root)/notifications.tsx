@@ -1,28 +1,30 @@
 import {
+    ActivityIndicator,
+    Alert,
     FlatList,
     Image,
-    SafeAreaView,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
 import { useAuthStore } from "@/store/authStore";
 import { getNotifications, markNotificationAsRead } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
+import type { AppwriteNotification } from "@/types/appwrite";
 
 const NotificationItem = ({ notification, onPress }: {
-    notification: any;
+    notification: AppwriteNotification;
     onPress: () => void;
 }) => {
     return (
         <TouchableOpacity
             onPress={onPress}
             className={`flex flex-row items-start p-4 border-b border-gray-200 ${
-                !notification.isRead ? 'bg-primary-50' : 'bg-white'
+                !notification.isRead ? 'bg-primary-100' : 'bg-white'
             }`}
         >
             <View className="flex-1 ml-3">
@@ -57,29 +59,20 @@ const Notifications = () => {
         skip: !user?.$id,
     });
 
-    useEffect(() => {
-        if (user?.$id) {
-            refetch({ userId: user.$id });
-        }
-    }, [user?.$id]);
-
-    const handleNotificationPress = async (notification: any) => {
+    const handleNotificationPress = async (notification: AppwriteNotification) => {
         if (!notification.isRead) {
-            await markNotificationAsRead({ notificationId: notification.$id });
+            try {
+                await markNotificationAsRead({ notificationId: notification.$id });
+                if (user?.$id) refetch({ userId: user.$id });
+            } catch {
+                Alert.alert("Error", "Couldn't update this notification. Please try again.");
+            }
         }
 
         if (notification.relatedPropertyId) {
             router.push(`/properties/${notification.relatedPropertyId}`);
         }
-
-        refetch({ userId: user?.$id || "" });
     };
-
-    const handleBackPress = () => {
-        router.back();
-    };
-
-    const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
 
     return (
         <SafeAreaView className="h-full bg-white">
@@ -95,21 +88,25 @@ const Notifications = () => {
                 contentContainerClassName="pb-20"
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
-                    <View className="flex items-center justify-center mt-20 px-5">
-                        <Image
-                            source={icons.bell}
-                            className="w-24 h-24 mb-4"
-                            tintColor="#9CA3AF"
-                        />
-                        <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
-                            No Notifications
-                        </Text>
-                        <Text className="text-base text-black-100 mt-2 text-center">
-                            You don't have any notifications yet
-                        </Text>
-                    </View>
+                    loading ? (
+                        <ActivityIndicator size="large" className="text-primary-300 mt-5" />
+                    ) : (
+                        <View className="flex items-center justify-center mt-20 px-5">
+                            <Image
+                                source={icons.bell}
+                                className="w-24 h-24 mb-4"
+                                tintColor="#9CA3AF"
+                            />
+                            <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
+                                No Notifications
+                            </Text>
+                            <Text className="text-base text-black-100 mt-2 text-center">
+                                You don't have any notifications yet
+                            </Text>
+                        </View>
+                    )
                 }
-                ListHeaderComponent={() => (
+                ListHeaderComponent={
                     <View className="px-5">
                         <View className="flex flex-row items-center justify-between mt-5 mb-6">
                             <View className={'flex-row gap-2 items-center'}>
@@ -126,7 +123,7 @@ const Notifications = () => {
                             </View>
                         </View>
                     </View>
-                )}
+                }
             />
         </SafeAreaView>
     );

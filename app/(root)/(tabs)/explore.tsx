@@ -2,19 +2,19 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  SafeAreaView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useEffect, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
 import Search from "@/components/Search";
 import { Card } from "@/components/Cards";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResult";
+import NotificationBell from "@/components/NotificationBell";
 
 import { getProperties } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
@@ -22,37 +22,16 @@ import { useNotificationsBadge } from "@/hooks/useNotificationsBadge";
 
 const Explore = () => {
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
-  const isMountedRef = useRef(false);
   const { unreadCount } = useNotificationsBadge();
 
-  const {
-    data: properties,
-    refetch,
-    loading,
-  } = useAppwrite({
+  // useAppwrite refetches by itself whenever filter/query change.
+  const { data: properties, loading } = useAppwrite({
     fn: getProperties,
     params: {
-      filter: params.filter!,
-      query: params.query!,
+      filter: params.filter,
+      query: params.query,
     },
-    skip: true,
   });
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isMountedRef.current) {
-      refetch({
-        filter: params.filter!,
-        query: params.query!,
-      });
-    }
-  }, [params.filter, params.query, refetch]);
 
   const handleCardPress = (id: string) => router.push(`/properties/${id}`);
 
@@ -68,6 +47,7 @@ const Explore = () => {
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" className="text-primary-300 mt-5" />
@@ -75,7 +55,7 @@ const Explore = () => {
             <NoResults />
           )
         }
-        ListHeaderComponent={() => (
+        ListHeaderComponent={
           <View className="px-5">
             <View className="flex flex-row items-center justify-between mt-5">
               <View className={"flex-row gap-2 items-center"}>
@@ -90,19 +70,7 @@ const Explore = () => {
                   Explore
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push("/notifications")}
-                className="relative"
-              >
-                <Image source={icons.bell} className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                    <Text className="text-white text-xs font-rubik-bold">
-                      {unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              <NotificationBell unreadCount={unreadCount} />
             </View>
 
             <Search />
@@ -111,11 +79,15 @@ const Explore = () => {
               <Filters />
 
               <Text className="text-xl font-rubik-bold text-black-300 mt-5">
-                Found {properties?.length} Properties
+                {loading
+                  ? "Searching..."
+                  : `Found ${properties?.length ?? 0} ${
+                      properties?.length === 1 ? "Property" : "Properties"
+                    }`}
               </Text>
             </View>
           </View>
-        )}
+        }
       />
     </SafeAreaView>
   );

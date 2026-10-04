@@ -37,22 +37,31 @@ export const useAppwrite = <T, P extends Record<string, string | number | undefi
   const [error, setError] = useState<string | null>(null);
   const paramsKeyRef = useRef<string>("");
   const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
   const fetchData = useCallback(
     async (fetchParams: P) => {
+      // Only the most recent request may update state, so a slow earlier response
+      // can't overwrite newer results.
+      const requestId = ++requestIdRef.current;
+      const isCurrent = () =>
+        isMountedRef.current && requestId === requestIdRef.current;
+
       setLoading(true);
       setError(null);
 
       try {
         const result = await fn(fetchParams);
-        if (isMountedRef.current) setData(result);
+        if (isCurrent()) setData(result);
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "An unknown error occurred";
-        if (isMountedRef.current) setError(errorMessage);
-        Alert.alert("Error", errorMessage);
+        if (isCurrent()) {
+          setError(errorMessage);
+          Alert.alert("Error", errorMessage);
+        }
       } finally {
-        if (isMountedRef.current) setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     },
     [fn]
@@ -77,7 +86,8 @@ export const useAppwrite = <T, P extends Record<string, string | number | undefi
 
   const refetch = useCallback(
     async (newParams: P) => {
-      paramsKeyRef.current = JSON.stringify(newParams ?? {});
+      // paramsKeyRef tracks the hook's `params` prop only; recording manual params
+      // here would make the next render think the prop changed and refetch stale params.
       await fetchData(newParams);
     },
     [fetchData]

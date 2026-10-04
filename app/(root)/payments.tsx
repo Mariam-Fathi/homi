@@ -1,31 +1,25 @@
 import {
+  ActivityIndicator,
   FlatList,
   Image,
-  SafeAreaView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
 import { useAuthStore } from "@/store/authStore";
 import { getPayments } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
 
-const PaymentItem = ({
-  payment,
-  onPress,
-}: {
-  payment: any;
-  onPress: () => void;
-}) => {
+const formatStatus = (status?: string) =>
+  status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown";
+
+const PaymentItem = ({ payment }: { payment: any }) => {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      className="flex flex-row items-start p-4 border-b border-gray-200 bg-white"
-    >
+    <View className="flex flex-row items-start p-4 border-b border-gray-200 bg-white">
       <View className="flex-1 ml-3">
         <Text className="text-base font-rubik-bold text-black-300">
           {payment.propertyTitle}
@@ -51,62 +45,56 @@ const PaymentItem = ({
                   : "text-red-800"
             }`}
           >
-            {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+            {formatStatus(payment.status)}
           </Text>
         </View>
         <Text className="text-xs font-rubik text-gray-400 mt-2">
-          {new Date(payment.createdAt).toLocaleDateString()}
+          {new Date(payment.$createdAt).toLocaleDateString()}
         </Text>
       </View>
 
       <Image source={icons.wallet} className="w-6 h-6" tintColor="#6B7280" />
-    </TouchableOpacity>
+    </View>
   );
 };
 
 const Payments = () => {
   const { user } = useAuthStore();
 
-  const { data: payments, refetch } = useAppwrite({
+  const { data: payments, loading } = useAppwrite({
     fn: getPayments,
     params: { email: user?.email || "" },
     skip: !user?.email,
   });
-
-  useEffect(() => {
-    if (user?.$id) {
-      refetch({ email: user.email });
-    }
-  }, [user?.$id]);
-
-  const handlePaymentPress = (payment: any) => {};
 
   const handleBackPress = () => {
     router.back();
   };
 
   const totalSpent =
-    payments?.reduce((total: number, payment: any) => {
-      return total + parseFloat(payment.amount);
-    }, 0) || 0;
+    payments
+      ?.filter((payment: any) => payment.status === "completed")
+      .reduce(
+        (total: number, payment: any) =>
+          total + (parseFloat(payment.amount) || 0),
+        0
+      ) ?? 0;
 
   return (
     <SafeAreaView className="h-full bg-white">
       <FlatList
         data={payments || []}
-        renderItem={({ item }) => (
-          <PaymentItem
-            payment={item}
-            onPress={() => handlePaymentPress(item)}
-          />
-        )}
+        renderItem={({ item }) => <PaymentItem payment={item} />}
         keyExtractor={(item) => item.$id}
         contentContainerClassName="pb-20"
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator size="large" className="text-primary-300 mt-5" />
+          ) : (
           <View className="flex items-center justify-center mt-20 px-5">
             <Image
-              source={icons.wallet} // Or use a payment icon
+              source={icons.wallet}
               className="w-24 h-24 mb-4"
               tintColor="#9CA3AF"
             />
@@ -117,8 +105,9 @@ const Payments = () => {
               You haven't made any payments yet
             </Text>
           </View>
+          )
         }
-        ListHeaderComponent={() => (
+        ListHeaderComponent={
           <View className="px-5">
             <View className="flex flex-row items-center justify-between mt-5 mb-6">
               <View className={"flex-row gap-2 items-center"}>
@@ -136,7 +125,7 @@ const Payments = () => {
             </View>
 
             {payments && payments.length > 0 && (
-              <View className="flex-row justify-between mb-4 bg-primary-50 p-3 rounded-lg">
+              <View className="flex-row justify-between mb-4 bg-primary-100 p-3 rounded-lg">
                 <View className="items-center">
                   <Text className="text-sm font-rubik text-gray-600">
                     Total
@@ -164,10 +153,18 @@ const Payments = () => {
                     {payments.filter((p: any) => p.status === "pending").length}
                   </Text>
                 </View>
+                <View className="items-center">
+                  <Text className="text-sm font-rubik text-gray-600">
+                    Spent
+                  </Text>
+                  <Text className="text-lg font-rubik-bold text-black-300">
+                    EGP {totalSpent.toLocaleString()}
+                  </Text>
+                </View>
               </View>
             )}
           </View>
-        )}
+        }
       />
     </SafeAreaView>
   );

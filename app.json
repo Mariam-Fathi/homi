@@ -60,7 +60,7 @@
     },
     "extra": {
       "router": {
-        "origin": "https://myapp.expo.app"
+        "origin": "https://homi.expo.app"
       },
       "eas": {
         "projectId": "5d028053-e54d-4d08-b0ad-9241032488d6"

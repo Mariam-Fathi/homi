@@ -7,15 +7,14 @@ import {
   View,
   RefreshControl,
 } from "react-native";
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useCallback, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import icons from "@/constants/icons";
 
 import Search from "@/components/Search";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResult";
+import NotificationBell from "@/components/NotificationBell";
 import { Card, FeaturedCard } from "@/components/Cards";
 
 import { useAppwrite } from "@/lib/useAppwrite";
@@ -23,19 +22,29 @@ import { getLatestProperties, getProperties } from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationsBadge } from "@/hooks/useNotificationsBadge";
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
+};
+
 const Home = () => {
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
-  const isMountedRef = useRef(false);
   const { unreadCount, refreshNotifications } = useNotificationsBadge();
 
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
 
-  const { data: latestProperties, loading: latestPropertiesLoading } =
-    useAppwrite({
-      fn: getLatestProperties,
-    });
+  const {
+    data: latestProperties,
+    loading: latestPropertiesLoading,
+    refetch: refetchLatest,
+  } = useAppwrite({
+    fn: getLatestProperties,
+  });
 
+  // useAppwrite refetches by itself whenever filter/query change.
   const {
     data: properties,
     refetch,
@@ -43,45 +52,30 @@ const Home = () => {
   } = useAppwrite({
     fn: getProperties,
     params: {
-      filter: params.filter!,
-      query: params.query!,
+      filter: params.filter,
+      query: params.query,
       limit: 6,
     },
-    skip: true,
   });
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isMountedRef.current) {
-      refetch({
-        filter: params.filter!,
-        query: params.query!,
-        limit: 6,
-      });
-    }
-  }, [params.filter, params.query, refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshNotifications();
-      await refetch({
-        filter: params.filter!,
-        query: params.query!,
-        limit: 6,
-      });
+      await Promise.all([
+        refreshNotifications(),
+        refetchLatest({}),
+        refetch({
+          filter: params.filter,
+          query: params.query,
+          limit: 6,
+        }),
+      ]);
     } catch (error) {
       console.error("Refresh error:", error);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshNotifications, refetch, params.filter, params.query]);
+  }, [refreshNotifications, refetchLatest, refetch, params.filter, params.query]);
 
   const handleCardPress = (id: string) => router.push(`/properties/${id}`);
 
@@ -97,6 +91,7 @@ const Home = () => {
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -107,7 +102,9 @@ const Home = () => {
             <NoResults />
           )
         }
-        ListHeaderComponent={() => (
+        // An element (not an inline component) so the header — and the search
+        // input inside it — isn't remounted on every render.
+        ListHeaderComponent={
           <View className="px-5">
             <View className="flex flex-row items-center justify-between mt-5">
               <View className="flex flex-row">
@@ -119,26 +116,14 @@ const Home = () => {
 
                 <View className="flex flex-col items-start ml-2 justify-center">
                   <Text className="text-xs font-rubik text-black-100">
-                    Good Morning
+                    {getGreeting()}
                   </Text>
                   <Text className="text-base font-rubik-medium text-black-300">
                     {user?.name}
                   </Text>
                 </View>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push("/notifications")}
-                className="relative"
-              >
-                <Image source={icons.bell} className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
-                    <Text className="text-white text-xs font-rubik-bold">
-                      {unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              <NotificationBell unreadCount={unreadCount} />
             </View>
 
             <Search />
@@ -191,7 +176,7 @@ const Home = () => {
               <Filters />
             </View>
           </View>
-        )}
+        }
       />
     </SafeAreaView>
   );

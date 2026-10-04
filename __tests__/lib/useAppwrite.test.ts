@@ -55,4 +55,25 @@ describe("useAppwrite", () => {
     expect(fn).toHaveBeenLastCalledWith({ a: "2" });
     expect(result.current.data).toEqual({ id: "2" });
   });
+
+  it("ignores a stale response that resolves after a newer one", async () => {
+    let resolveSlow: (v: string) => void = () => {};
+    const fn = jest
+      .fn()
+      .mockImplementationOnce(() => new Promise((r) => (resolveSlow = r)))
+      .mockResolvedValueOnce("fresh");
+    const { result } = renderHook(() =>
+      useAppwrite({ fn, params: { q: "a" }, skip: false })
+    );
+
+    await act(async () => {
+      await result.current.refetch({ q: "ab" });
+    });
+    expect(result.current.data).toBe("fresh");
+
+    await act(async () => {
+      resolveSlow("stale");
+    });
+    expect(result.current.data).toBe("fresh");
+  });
 });

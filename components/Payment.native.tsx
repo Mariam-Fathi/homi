@@ -1,49 +1,72 @@
 import { useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { ReactNativeModal } from "react-native-modal";
 import { fetchAPI } from "@/lib/fetch";
 import { PaymentProps } from "@/types/type";
 import * as Linking from "expo-linking";
 import images from "@/constants/images";
 import CustomButton from "./CustomButton";
-import {databases} from "@/lib/appwrite";
+import { createPaymentRecord } from "@/lib/appwrite";
 
 const Payment = ({ fullName, email, amount,propertyTitle }: PaymentProps) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [success, setSuccess] = useState<boolean>(false);
+  const [processing, setProcessing] = useState<boolean>(false);
 
-
-    const savePaymentRecord = async () => {
-        try {
-            await databases.createDocument(
-                process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
-                process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-                'unique()',
-                {
-                    amount: amount.toString(),
-                    status: 'completed',
-                    fullName,
-                    email,
-                    propertyTitle: propertyTitle,
-                }
-            );
-        } catch (error) {
-            console.error(error);
-        }
-    };
+  const savePaymentRecord = async () => {
+    try {
+      await createPaymentRecord({
+        amount: String(amount),
+        status: "completed",
+        fullName,
+        email,
+        propertyTitle,
+      });
+    } catch (error) {
+      // The charge already succeeded; don't surface this as a payment failure.
+      console.error("Error saving payment record:", error);
+    }
+  };
 
   const openPaymentSheet = async () => {
-    await initializePaymentSheet();
+    if (processing) return;
+    if (!email || !amount) {
+      Alert.alert("Error", "Payment details are not available yet.");
+      return;
+    }
 
-    const { error } = await presentPaymentSheet();
+    setProcessing(true);
+    try {
+      await initializePaymentSheet();
 
-    if (error) {
-      Alert.alert(`Error code: ${error.code}`, error.message);
-    } else {
+      const { error } = await presentPaymentSheet();
+
+      if (error) {
+        // Closing the sheet isn't an error worth alerting about.
+        if (error.code !== "Canceled") {
+          Alert.alert("Payment failed", error.message);
+        }
+      } else {
         await savePaymentRecord();
         setSuccess(true);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      Alert.alert(
+        "Payment failed",
+        error instanceof Error ? error.message : "Something went wrong. Please try again."
+      );
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -64,28 +87,36 @@ const Payment = ({ fullName, email, amount,propertyTitle }: PaymentProps) => {
     );
 
     const { error } = await initPaymentSheet({
-      merchantDisplayName: "Expo, Inc.",
+      merchantDisplayName: "Homi",
       customerId: customer,
       customerEphemeralKeySecret: ephemeralKey,
       paymentIntentClientSecret: paymentIntent,
       defaultBillingDetails: {
         name: fullName,
         email: email,
-        phone: "000-000-000",
       },
-      returnURL: Linking.createURL("(root)/(tabs)/home"),
+      returnURL: Linking.createURL("/home"),
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
   };
 
   return (
     <>
       <TouchableOpacity
         onPress={openPaymentSheet}
+        disabled={processing}
         className="flex-1 flex flex-row items-center justify-center bg-primary-300 py-3 rounded-full shadow-md shadow-zinc-400"
       >
-        <Text className="text-white text-lg text-center font-rubik-bold">
-          Book Now
-        </Text>
+        {processing ? (
+          <ActivityIndicator color="white" />
+        ) : (
+          <Text className="text-white text-lg text-center font-rubik-bold">
+            Book Now
+          </Text>
+        )}
       </TouchableOpacity>
       <ReactNativeModal
         isVisible={success}
@@ -94,11 +125,11 @@ const Payment = ({ fullName, email, amount,propertyTitle }: PaymentProps) => {
         <View className="flex flex-col items-center justify-center bg-white p-7 rounded-2xl">
           <Image source={images.check} className="w-28 h-28 mt-5" />
 
-          <Text className="text-2xl text-center font-JakartaBold mt-5">
+          <Text className="text-2xl text-center font-rubik-bold mt-5">
               Property Booked Successfully
           </Text>
 
-          <Text className="text-md text-general-200 font-JakartaRegular text-center mt-3">
+          <Text className="text-base text-black-200 font-rubik text-center mt-3">
               Congratulations! Your property viewing has been scheduled. Our agent will contact you shortly to confirm the appointment details.
         </Text>
 
@@ -106,7 +137,7 @@ const Payment = ({ fullName, email, amount,propertyTitle }: PaymentProps) => {
             title="Back Home"
             onPress={() => {
               setSuccess(false);
-              router.push("/(root)/(tabs)/home");
+              router.replace("/(root)/(tabs)/home");
             }}
             className="mt-5"
           />

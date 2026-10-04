@@ -12,64 +12,11 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { checkAndNotifyNewProperties } from "@/lib/appwrite";
+import { useState } from "react";
 
 const Auth = () => {
- const { fetchCurrentUser, isAuthenticated, loading, user } = useAuthStore();
+  const { fetchCurrentUser, isAuthenticated, loading } = useAuthStore();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const hasCheckedProperties = useRef(false);
-  const checkTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const checkNewProperties = useCallback(async () => {
-    if (hasCheckedProperties.current || !isAuthenticated || !user?.$id) {
-      return;
-    }
-
-    hasCheckedProperties.current = true;
-    
-    try {
-      console.log("🔍 Checking for new properties after login...");
-      const result = await checkAndNotifyNewProperties({ userId: user.$id });
-      
-      if (result.isNewUser) {
-        console.log("👋 Welcome new user!");
-      } else if (result.noNewProperties) {
-        console.log("📭 No new properties found");
-      } else if (result.success) {
-        console.log("✅ New properties check completed");
-      }
-    } catch (error) {
-      console.error("Error in new properties check:", error);
-    }
-  }, [isAuthenticated, user]);
-
-useEffect(() => {
-    if (isAuthenticated && user?.$id) {
-      if (checkTimeoutRef.current) {
-        clearTimeout(checkTimeoutRef.current);
-      }
-      
-      checkTimeoutRef.current = setTimeout(() => {
-        checkNewProperties();
-      }, 1000);
-    }
-
-    return () => {
-      if (checkTimeoutRef.current) {
-        clearTimeout(checkTimeoutRef.current);
-      }
-    };
-  }, [isAuthenticated, user, checkNewProperties]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      hasCheckedProperties.current = false;
-      if (checkTimeoutRef.current) {
-        clearTimeout(checkTimeoutRef.current);
-      }
-    }
-  }, [isAuthenticated]);
 
   const handleLogin = async () => {
     try {

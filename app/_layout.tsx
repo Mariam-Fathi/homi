@@ -4,6 +4,8 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import "./global.css";
 
+SplashScreen.preventAutoHideAsync();
+
 export default function Layout() {
   const [fontsLoaded] = useFonts({
     "Rubik-Bold": require("../assets/fonts/Rubik-Bold.ttf"),

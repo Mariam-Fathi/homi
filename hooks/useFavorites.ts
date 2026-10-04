@@ -1,69 +1,32 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
-import { isPropertyFavorited, addToFavorites, removeFromFavorites } from "@/lib/appwrite";
+import { useFavoritesStore } from "@/store/favoritesStore";
 import { Models } from "react-native-appwrite";
+import type { Property } from "@/types/appwrite";
 
 export const useFavorites = (property: Models.Document) => {
-    const { user } = useAuthStore();
-    const [isSaved, setIsSaved] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const userId = useAuthStore((state) => state.user?.$id);
+    const load = useFavoritesStore((state) => state.load);
+    const toggle = useFavoritesStore((state) => state.toggle);
+    const isSaved = useFavoritesStore((state) => state.ids.has(property.$id));
+    const isLoading = useFavoritesStore((state) => state.pending.has(property.$id));
 
     useEffect(() => {
-        if (user?.$id) {
-            checkFavoriteStatus();
-        } else {
-            setIsSaved(false);
-        }
-    }, [property.$id, user?.$id]);
-
-    const checkFavoriteStatus = async () => {
-        if (!user?.$id) return;
-
-        try {
-            const favorited = await isPropertyFavorited({
-                userId: user.$id,
-                propertyId: property.$id
-            });
-            setIsSaved(favorited);
-        } catch (error) {
-            console.error('Error checking favorite status:', error);
-        }
-    };
+        if (userId) load(userId);
+    }, [userId, load]);
 
     const handleHeartPress = async () => {
-        if (!user?.$id) {
+        if (!userId) {
             console.log('User must be logged in to save favorites');
             return;
         }
-
-        if (isLoading) return;
-
-        setIsLoading(true);
-        try {
-            if (isSaved) {
-                await removeFromFavorites({
-                    userId: user.$id,
-                    propertyId: property.$id
-                });
-                setIsSaved(false);
-            } else {
-                await addToFavorites({
-                    userId: user.$id,
-                    property
-                });
-                setIsSaved(true);
-            }
-        } catch (error) {
-            console.error('Favorite operation failed:', error);
-        } finally {
-            setIsLoading(false);
-        }
+        await toggle(userId, property as unknown as Property);
     };
 
     return {
-        isSaved,
+        isSaved: !!userId && isSaved,
         isLoading,
         handleHeartPress,
-        hasUser: !!user?.$id
+        hasUser: !!userId
     };
 };

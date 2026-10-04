@@ -1,8 +1,6 @@
 /**
  * @jest-environment node
  */
-import { create } from "zustand";
-
 // Mock appwrite before store imports it
 jest.mock("@/lib/appwrite", () => ({
   getCurrentUser: jest.fn().mockResolvedValue(null),
@@ -40,16 +38,27 @@ describe("authStore", () => {
       expect(storeResult.message).toBeDefined();
     });
 
-    it("returns partial success object when appwrite throws", async () => {
+    it("reports failure and keeps the user signed in when appwrite throws", async () => {
       (appwriteDeleteAccount as jest.Mock).mockRejectedValue(new Error("Network error"));
 
       const storeResult = await useAuthStore.getState().deleteAccount();
 
-      expect(storeResult).toMatchObject({
-        success: true,
-        message: "Account deactivated. Most of your data has been deleted.",
-        details: { partial: true },
+      expect(storeResult.success).toBe(false);
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().loading).toBe(false);
+    });
+
+    it("signs out locally once sessions are cleared, even on partial deletion", async () => {
+      (appwriteDeleteAccount as jest.Mock).mockResolvedValue({
+        success: false,
+        message: "partial",
+        details: { sessionsCleared: true, partial: true },
       });
+
+      await useAuthStore.getState().deleteAccount();
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().user).toBeNull();
     });
   });
 });

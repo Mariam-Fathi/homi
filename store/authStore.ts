@@ -6,8 +6,8 @@ interface StoreType {
   isAuthenticated: boolean;
   loading: boolean;
   user: User | null;
-  fetchCurrentUser: () => void;
-  logout: () => void;
+  fetchCurrentUser: () => Promise<void>;
+  logout: () => Promise<void>;
   deleteAccount: () => Promise<DeleteAccountResult>;
 }
 
@@ -20,14 +20,14 @@ interface User {
 
 export const useAuthStore = create<StoreType>((set) => ({
   isAuthenticated: false,
-  loading: false,
+  // Starts true because the session check below runs as soon as the store is created;
+  // screens wait for it instead of redirecting to the login screen prematurely.
+  loading: true,
   user: null,
   fetchCurrentUser: async () => {
-    console.log("fetchCurrentUser store.....");
     set({ loading: true });
     try {
       const currentUser = await getCurrentUser();
-      console.log("CurrentUser store... ", currentUser);
       set({
         user: currentUser,
         isAuthenticated: !!currentUser,
@@ -41,27 +41,32 @@ export const useAuthStore = create<StoreType>((set) => ({
   logout: async () => {
     try {
       await appwriteLogout();
-      set({ user: null, isAuthenticated: false });
     } catch (error) {
       console.error("Logout error:", error);
+    } finally {
+      set({ user: null, isAuthenticated: false });
     }
   },
   deleteAccount: async (): Promise<DeleteAccountResult> => {
-  try {
     set({ loading: true });
-    const result = await deleteAccount();
-    set({ user: null, isAuthenticated: false, loading: false });
-    return result;
-  } catch (error) {
-    console.error('Delete account error:', error);
-    set({ user: null, isAuthenticated: false, loading: false });
-    return {
-      success: true,
-      message: "Account deactivated. Most of your data has been deleted.",
-      details: { partial: true }
-    };
-  }
-},
+    try {
+      const result = await deleteAccount();
+      // Once the account is deactivated its sessions are gone, so sign out locally
+      // even if some data could not be removed.
+      if (result.details?.sessionsCleared) {
+        set({ user: null, isAuthenticated: false });
+      }
+      return result;
+    } catch (error) {
+      console.error("Delete account error:", error);
+      return {
+        success: false,
+        message: "We couldn't delete your account. Please check your connection and try again.",
+      };
+    } finally {
+      set({ loading: false });
+    }
+  },
 }));
 
 useAuthStore.getState().fetchCurrentUser();

@@ -1,44 +1,43 @@
-# dependencies
+# EAS uses this file instead of .gitignore, so secrets that are gitignored but
+# required for builds (e.g. google-services.json) are still uploaded.
 
+# dependencies
 node_modules/
 
 # Expo
-
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
 # Native
-
-_.orig._
-_.jks
-_.p8
-_.p12
-_.key
-\*.mobileprovision
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
 # Metro
-
-.metro-health-check\*
+.metro-health-check*
 
 # debug
-
-npm-debug._
-yarn-debug._
-yarn-error.\*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
 # macOS
-
 .DS_Store
-\*.pem
+*.pem
+
+# Firebase admin credentials must never ship with the app
+*firebase-adminsdk*.json
 
 # typescript
+*.tsbuildinfo
 
-\*.tsbuildinfo
-
-# Ignore test coverage reports
-
+# test coverage reports
 /coverage
 
-android
+/android
+/ios

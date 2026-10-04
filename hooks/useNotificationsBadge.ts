@@ -18,7 +18,8 @@ export function useNotificationsBadge() {
   } = useAppwrite({
     fn: getNotifications,
     params: { userId: user?.$id ?? "" },
-    skip: !user?.$id,
+    // Fetching is driven by useFocusEffect below (it also runs on first focus).
+    skip: true,
   });
 
   const unreadCount =

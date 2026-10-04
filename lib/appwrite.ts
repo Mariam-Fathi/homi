@@ -29,7 +29,17 @@ export const config = {
     process.env.EXPO_PUBLIC_APPWRITE_USER_FAVORITES_COLLECTION_ID,
   userNotificationsCollectionId:
     process.env.EXPO_PUBLIC_APPWRITE_NOTIFICATIONS_COLLECTION_ID,
+  paymentsCollectionId: process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
 };
+
+// Appwrite caps a single page at 100 documents (and defaults to 25).
+const PAGE_SIZE = 100;
+
+if (!config.endpoint || !config.projectId || !config.databaseId) {
+  throw new Error(
+    "Missing Appwrite configuration. Copy .env.example to .env and fill in the EXPO_PUBLIC_APPWRITE_* values."
+  );
+}
 
 const client = new Client()
   .setEndpoint(config.endpoint!)
@@ -39,6 +49,33 @@ const client = new Client()
 export const account = new Account(client);
 export const avatars = new Avatars(client);
 export const databases = new Databases(client);
+
+/** Deletes every document in a collection matching `queries`, page by page. */
+async function deleteAllDocuments(collectionId: string, queries: string[]) {
+  while (true) {
+    const page = await databases.listDocuments(config.databaseId!, collectionId, [
+      ...queries,
+      Query.limit(PAGE_SIZE),
+    ]);
+    for (const doc of page.documents) {
+      await databases.deleteDocument(config.databaseId!, collectionId, doc.$id);
+    }
+    if (page.documents.length < PAGE_SIZE) break;
+  }
+}
+
+/** Fetches properties by id in a single request, preserving the order of `ids`. */
+async function getPropertiesByIds(ids: string[]) {
+  const uniqueIds = [...new Set(ids)].slice(0, PAGE_SIZE);
+  if (uniqueIds.length === 0) return [];
+  const result = await databases.listDocuments(
+    config.databaseId!,
+    config.propertiesCollectionId!,
+    [Query.equal("$id", uniqueIds), Query.limit(uniqueIds.length)]
+  );
+  const byId = new Map(result.documents.map((doc) => [doc.$id, doc]));
+  return uniqueIds.map((id) => byId.get(id)).filter((doc) => doc !== undefined);
+}
 
 export const login = async () => {
   try {
@@ -84,11 +121,10 @@ export const logout = async () => {
 export const getCurrentUser = async () => {
   try {
     const { $id, name, email } = await account.get();
-    if (name) {
-      const userAvatar = avatars.getInitials(name);
-      return { $id, name, email, avatar: userAvatar.toString() };
-    }
-    return null;
+    // A session without a display name is still a valid login; fall back to the email.
+    const displayName = name || email;
+    const userAvatar = avatars.getInitials(displayName);
+    return { $id, name: displayName, email, avatar: userAvatar.toString() };
   } catch (error) {
     console.log(error);
     return null;
@@ -100,7 +136,7 @@ export async function getLatestProperties() {
     const result = await databases.listDocuments(
       config.databaseId!,
       config.propertiesCollectionId!,
-      [Query.orderAsc("$createdAt"), Query.limit(5)]
+      [Query.orderDesc("$createdAt"), Query.limit(5)]
     );
 
     return result.documents;
@@ -253,31 +289,34 @@ export async function isPropertyFavorited({
   }
 }
 
+export async function getUserFavoriteIds({
+  userId,
+}: {
+  userId: string;
+}): Promise<string[]> {
+  const favorites = await databases.listDocuments(
+    config.databaseId!,
+    config.userFavoritesCollectionId!,
+    [Query.equal("userId", userId), Query.limit(PAGE_SIZE)]
+  );
+  return favorites.documents.map((favorite) => favorite.propertyId);
+}
+
 export async function getUserFavorites({ userId }: { userId: string }) {
   try {
     const favorites = await databases.listDocuments(
       config.databaseId!,
       config.userFavoritesCollectionId!,
-      [Query.equal("userId", userId), Query.orderDesc("$createdAt")]
+      [
+        Query.equal("userId", userId),
+        Query.orderDesc("$createdAt"),
+        Query.limit(PAGE_SIZE),
+      ]
     );
 
-    const favoriteProperties = await Promise.all(
-      favorites.documents.map(async (favorite) => {
-        try {
-          const property = await databases.getDocument(
-            config.databaseId!,
-            config.propertiesCollectionId!,
-            favorite.propertyId
-          );
-          return property;
-        } catch (error) {
-          console.error("Error fetching property for favorite:", error);
-          return null;
-        }
-      })
+    return await getPropertiesByIds(
+      favorites.documents.map((favorite) => favorite.propertyId)
     );
-
-    return favoriteProperties.filter((property) => property !== null);
   } catch (error) {
     console.error("Error getting user favorites:", error);
     return [];
@@ -341,31 +380,19 @@ export async function analyzeUserPreferences({ userId }: { userId: string }): Pr
     const typeCount: { [key: string]: number } = {};
     let processedActivities = 0;
 
-    for (const activity of userActivities.documents) {
-      try {
-        if (!activity.propertyId) {
-          console.log("❌ No propertyId found for activity:", activity.$id);
-          continue;
-        }
+    const viewedIds: string[] = userActivities.documents
+      .map((activity) => activity.propertyId)
+      .filter(Boolean);
+    const viewedProperties = await getPropertiesByIds(viewedIds);
+    const typeById = new Map(
+      viewedProperties.map((property) => [property.$id, property.type])
+    );
 
-        const property = await databases.getDocument(
-          config.databaseId!,
-          config.propertiesCollectionId!,
-          activity.propertyId
-        );
-
-        if (property && property.type) {
-          typeCount[property.type] = (typeCount[property.type] || 0) + 1;
-          processedActivities++;
-          console.log(`✅ Found property type: ${property.type}`);
-        } else {
-          console.log(
-            "❌ Could not fetch property or property has no type:",
-            activity.propertyId
-          );
-        }
-      } catch (error) {
-        console.error("❌ Error fetching property for activity:", error);
+    for (const propertyId of viewedIds) {
+      const type = typeById.get(propertyId);
+      if (type) {
+        typeCount[type] = (typeCount[type] || 0) + 1;
+        processedActivities++;
       }
     }
 
@@ -420,7 +447,7 @@ export async function getNotifications({ userId }: { userId: string }): Promise<
       ]
     );
 
-    return notifications.documents;
+    return notifications.documents as unknown as AppwriteNotification[];
   } catch (error) {
     console.error("Error getting notifications:", error);
     return [];
@@ -456,10 +483,24 @@ export async function checkAndNotifyNewProperties({
   userId: string;
 }) {
   try {
+    if (!config.userNotificationsCollectionId) {
+      return { success: false, error: "Notifications collection not configured" };
+    }
+
     const preferences = await analyzeUserPreferences({ userId });
 
     if (!preferences) {
       console.log("👋 No user preferences found (new user or no activities)");
+
+      // Greet a user only once: skip if they already have any notification.
+      const existing = await databases.listDocuments(
+        config.databaseId!,
+        config.userNotificationsCollectionId,
+        [Query.equal("userId", userId), Query.limit(1)]
+      );
+      if (existing.documents.length > 0) {
+        return { success: true, noNewProperties: true };
+      }
 
       const latestProperties = await databases.listDocuments(
         config.databaseId!,
@@ -499,16 +540,35 @@ export async function checkAndNotifyNewProperties({
       [
         Query.equal("type", preferences.type),
         Query.greaterThan("$createdAt", oneWeekAgo.toISOString()),
+        Query.orderDesc("$createdAt"),
         Query.limit(5),
       ]
     );
 
-    if (newProperties.documents.length === 0) {
+    // Skip properties the user has already been notified about.
+    const alreadyNotified = await databases.listDocuments(
+      config.databaseId!,
+      config.userNotificationsCollectionId,
+      [
+        Query.equal("userId", userId),
+        Query.isNotNull("relatedPropertyId"),
+        Query.orderDesc("$createdAt"),
+        Query.limit(PAGE_SIZE),
+      ]
+    );
+    const notifiedIds = new Set(
+      alreadyNotified.documents.map((doc) => doc.relatedPropertyId)
+    );
+    const unseen = newProperties.documents.filter(
+      (doc) => !notifiedIds.has(doc.$id)
+    );
+
+    if (unseen.length === 0) {
       console.log("📭 No new properties matching preferences");
       return { success: true, noNewProperties: true };
     }
 
-    const property = newProperties.documents[0];
+    const property = unseen[0];
 
     await createNotification({
       userId: userId,
@@ -532,7 +592,7 @@ export async function checkAndNotifyNewProperties({
     console.log("✅ New property notification sent");
     return {
       success: true,
-      count: newProperties.documents.length,
+      count: unseen.length,
       property: property,
     };
   } catch (error) {
@@ -542,16 +602,35 @@ export async function checkAndNotifyNewProperties({
 }
 
 export const getPayments = async ({ email }: { email: string }) => {
-  try {
-    const response = await databases.listDocuments(
-      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
-      process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-      [Query.equal("email", email)]
-    );
-    return response.documents;
-  } catch (error) {
-    throw error;
+  if (!config.paymentsCollectionId) return [];
+  const response = await databases.listDocuments(
+    config.databaseId!,
+    config.paymentsCollectionId,
+    [
+      Query.equal("email", email),
+      Query.orderDesc("$createdAt"),
+      Query.limit(PAGE_SIZE),
+    ]
+  );
+  return response.documents;
+};
+
+export const createPaymentRecord = async (payment: {
+  amount: string;
+  status: "completed" | "pending" | "failed";
+  fullName: string;
+  email: string;
+  propertyTitle: string;
+}) => {
+  if (!config.paymentsCollectionId) {
+    throw new Error("Payments collection not configured");
   }
+  return databases.createDocument(
+    config.databaseId!,
+    config.paymentsCollectionId,
+    ID.unique(),
+    payment
+  );
 };
 export const deleteAccount = async (): Promise<DeleteAccountResult> => {
   try {
@@ -569,19 +648,9 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
     const deletionSteps = [];
 
     try {
-      const userFavorites = await databases.listDocuments(
-        config.databaseId!,
-        config.userFavoritesCollectionId!,
-        [Query.equal("userId", userId)]
-      );
-
-      for (const favorite of userFavorites.documents) {
-        await databases.deleteDocument(
-          config.databaseId!,
-          config.userFavoritesCollectionId!,
-          favorite.$id
-        );
-      }
+      await deleteAllDocuments(config.userFavoritesCollectionId!, [
+        Query.equal("userId", userId),
+      ]);
       deletionSteps.push("favorites");
       console.log("✅ Deleted user favorites");
     } catch (error) {
@@ -590,19 +659,9 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
 
     try {
       if (config.userActivityCollectionId) {
-        const userActivities = await databases.listDocuments(
-          config.databaseId!,
-          config.userActivityCollectionId,
-          [Query.equal("userId", userId)]
-        );
-
-        for (const activity of userActivities.documents) {
-          await databases.deleteDocument(
-            config.databaseId!,
-            config.userActivityCollectionId,
-            activity.$id
-          );
-        }
+        await deleteAllDocuments(config.userActivityCollectionId, [
+          Query.equal("userId", userId),
+        ]);
         deletionSteps.push("activities");
         console.log("✅ Deleted user activities");
       }
@@ -612,19 +671,9 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
 
     try {
       if (config.userNotificationsCollectionId) {
-        const userNotifications = await databases.listDocuments(
-          config.databaseId!,
-          config.userNotificationsCollectionId,
-          [Query.equal("userId", userId)]
-        );
-
-        for (const notification of userNotifications.documents) {
-          await databases.deleteDocument(
-            config.databaseId!,
-            config.userNotificationsCollectionId,
-            notification.$id
-          );
-        }
+        await deleteAllDocuments(config.userNotificationsCollectionId, [
+          Query.equal("userId", userId),
+        ]);
         deletionSteps.push("notifications");
         console.log("✅ Deleted user notifications");
       }
@@ -632,20 +681,10 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
       console.error("Error deleting notifications:", error);
     }
     try {
-      if (process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID) {
-        const userPayments = await databases.listDocuments(
-          config.databaseId!,
-          process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-          [Query.equal("email", userEmail)]
-        );
-
-        for (const payment of userPayments.documents) {
-          await databases.deleteDocument(
-            config.databaseId!,
-            process.env.EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-            payment.$id
-          );
-        }
+      if (config.paymentsCollectionId) {
+        await deleteAllDocuments(config.paymentsCollectionId, [
+          Query.equal("email", userEmail),
+        ]);
         deletionSteps.push("payments");
         console.log("✅ Deleted user payments");
       }
@@ -679,27 +718,51 @@ export const deleteAccount = async (): Promise<DeleteAccountResult> => {
       );
     }
 
+    // The client SDK can't hard-delete a user, but it can block the account,
+    // which also invalidates every session.
+    let accountDeactivated = false;
+    let sessionsCleared = false;
     try {
-      await account.deleteSessions();
-      console.log("✅ All sessions deleted");
-    } catch (sessionError) {
-      console.error("Error deleting sessions:", sessionError);
+      await account.updateStatus();
+      accountDeactivated = true;
+      sessionsCleared = true;
+      console.log("✅ Account deactivated");
+    } catch (statusError) {
+      console.error("Error deactivating account:", statusError);
+      try {
+        await account.deleteSessions();
+        sessionsCleared = true;
+        console.log("✅ All sessions deleted");
+      } catch (sessionError) {
+        console.error("Error deleting sessions:", sessionError);
+      }
     }
 
-    console.log("🎉 Account deletion completed successfully!");
-    console.log("📊 Deletion summary:");
-    console.log("   - User data deleted:", deletionSteps.join(", "));
-    console.log("   - OAuth identity deleted:", identityDeleted);
-    console.log("   - Sessions cleared: yes");
+    console.log("📊 Deletion summary:", {
+      dataDeleted: deletionSteps,
+      identityDeleted,
+      accountDeactivated,
+      sessionsCleared,
+    });
+
+    const expectedSteps = ["favorites"];
+    if (config.userActivityCollectionId) expectedSteps.push("activities");
+    if (config.userNotificationsCollectionId) expectedSteps.push("notifications");
+    if (config.paymentsCollectionId) expectedSteps.push("payments");
+    const partial = expectedSteps.some((step) => !deletionSteps.includes(step));
 
     return {
-      success: true,
-      message:
-        "All your personal data has been permanently deleted. Your account has been deactivated.",
+      success: accountDeactivated && !partial,
+      message: !accountDeactivated
+        ? "We couldn't deactivate your account. Please try again or contact support."
+        : partial
+          ? "Your account has been deactivated, but some of your data could not be removed. Please contact support."
+          : "All your personal data has been permanently deleted. Your account has been deactivated.",
       details: {
         dataDeleted: deletionSteps,
-        identityDeleted: identityDeleted,
-        sessionsCleared: true,
+        identityDeleted,
+        sessionsCleared,
+        partial,
       },
     };
   } catch (error) {

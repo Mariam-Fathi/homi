@@ -1,4 +1,5 @@
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   ScrollView,
@@ -17,7 +18,7 @@ import { facilities } from "@/constants/data";
 
 import { useAppwrite } from "@/lib/useAppwrite";
 import { getPropertyById } from "@/lib/appwrite";
-import StripeProvider from "../../../components/StripeProvider";
+import StripeProvider from "@/components/StripeProvider";
 import { useAuthStore } from "@/store/authStore";
 import Payment from "@/components/Payment";
 import { FavoriteButton } from "@/components/FavoriteButton";
@@ -28,12 +29,39 @@ const Property = () => {
 
   const windowHeight = Dimensions.get("window").height;
 
-  const { data: property } = useAppwrite({
+  const { data: property, loading } = useAppwrite({
     fn: getPropertyById,
     params: {
       id: id!,
     },
+    skip: !id,
   });
+
+  const reviews = property?.reviews ?? [];
+  const facilityList: string[] = property?.facilities ?? [];
+  const galleryList = property?.gallery ?? [];
+
+  if (loading || !property) {
+    return (
+      <View className="flex-1 justify-center items-center bg-white px-5">
+        {loading ? (
+          <ActivityIndicator size="large" color="#0061FF" />
+        ) : (
+          <>
+            <Text className="text-xl font-rubik-bold text-black-300">
+              Property not found
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="bg-primary-300 px-6 py-3 rounded-full mt-6"
+            >
+              <Text className="text-white font-rubik-bold text-base">Go Back</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
+  }
 
   return (
     <StripeProvider>
@@ -90,7 +118,7 @@ const Property = () => {
               <View className="flex flex-row items-center gap-2">
                 <Image source={icons.star} className="size-5" />
                 <Text className="text-black-200 text-sm mt-1 font-rubik-medium">
-                  {property?.rating} ({property?.reviews.length} reviews)
+                  {property?.rating} ({reviews.length} reviews)
                 </Text>
               </View>
             </View>
@@ -116,34 +144,36 @@ const Property = () => {
               </Text>
             </View>
 
-            <View className="w-full border-t border-primary-200 pt-7 mt-5">
-              <Text className="text-black-300 text-xl font-rubik-bold">
-                Agent
-              </Text>
+            {property.agent && (
+              <View className="w-full border-t border-primary-200 pt-7 mt-5">
+                <Text className="text-black-300 text-xl font-rubik-bold">
+                  Agent
+                </Text>
 
-              <View className="flex flex-row items-center justify-between mt-4">
-                <View className="flex flex-row items-center">
-                  <Image
-                    source={{ uri: property?.agent.avatar }}
-                    className="size-14 rounded-full"
-                  />
+                <View className="flex flex-row items-center justify-between mt-4">
+                  <View className="flex flex-row items-center">
+                    <Image
+                      source={{ uri: property.agent.avatar }}
+                      className="size-14 rounded-full"
+                    />
 
-                  <View className="flex flex-col items-start justify-center ml-3">
-                    <Text className="text-lg text-black-300 text-start font-rubik-bold">
-                      {property?.agent.name}
-                    </Text>
-                    <Text className="text-sm text-black-200 text-start font-rubik-medium">
-                      {property?.agent.email}
-                    </Text>
+                    <View className="flex flex-col items-start justify-center ml-3">
+                      <Text className="text-lg text-black-300 text-start font-rubik-bold">
+                        {property.agent.name}
+                      </Text>
+                      <Text className="text-sm text-black-200 text-start font-rubik-medium">
+                        {property.agent.email}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="flex flex-row items-center gap-3">
+                    <Image source={icons.chat} className="size-7" />
+                    <Image source={icons.phone} className="size-7" />
                   </View>
                 </View>
-
-                <View className="flex flex-row items-center gap-3">
-                  <Image source={icons.chat} className="size-7" />
-                  <Image source={icons.phone} className="size-7" />
-                </View>
               </View>
-            </View>
+            )}
 
             <View className="mt-7">
               <Text className="text-black-300 text-xl font-rubik-bold">
@@ -159,9 +189,9 @@ const Property = () => {
                 Facilities
               </Text>
 
-              {property?.facilities.length > 0 && (
+              {facilityList.length > 0 && (
                 <View className="flex flex-row flex-wrap items-start justify-start mt-2 gap-5">
-                  {property?.facilities.map((item: string, index: number) => {
+                  {facilityList.map((item: string, index: number) => {
                     const facility = facilities.find(
                       (facility) => facility.title === item
                     );
@@ -192,14 +222,14 @@ const Property = () => {
               )}
             </View>
 
-            {property?.gallery.length > 0 && (
+            {galleryList.length > 0 && (
               <View className="mt-7">
                 <Text className="text-black-300 text-xl font-rubik-bold">
                   Gallery
                 </Text>
                 <FlatList
                   contentContainerStyle={{ paddingRight: 20 }}
-                  data={property?.gallery}
+                  data={galleryList}
                   keyExtractor={(item) => item.$id}
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -231,13 +261,13 @@ const Property = () => {
               />
             </View>
 
-            {property?.reviews.length > 0 && (
+            {reviews.length > 0 && (
               <View className="mt-7">
                 <View className="flex flex-row items-center justify-between">
                   <View className="flex flex-row items-center">
                     <Image source={icons.star} className="size-6" />
                     <Text className="text-black-300 text-xl font-rubik-bold ml-2">
-                      {property?.rating} ({property?.reviews.length} reviews)
+                      {property?.rating} ({reviews.length} reviews)
                     </Text>
                   </View>
 
@@ -249,7 +279,7 @@ const Property = () => {
                 </View>
 
                 <View className="mt-5">
-                  <Comment item={property?.reviews[0]} />
+                  <Comment item={reviews[0]} />
                 </View>
               </View>
             )}
@@ -270,10 +300,10 @@ const Property = () => {
               </Text>
             </View>
             <Payment
-                propertyTitle={property?.name}
-              fullName={user?.name!}
-              email={user?.email!}
-              amount={property?.price!}
+              propertyTitle={property.name}
+              fullName={user?.name ?? ""}
+              email={user?.email ?? ""}
+              amount={String(property.price)}
             />
           </View>
         </View>

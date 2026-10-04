@@ -2,14 +2,12 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { useAuthStore } from "@/store/authStore";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { useNotification } from "@/context/NotificationContext";
 import { checkAndNotifyNewProperties } from "@/lib/appwrite";
 
 export const NewPropertiesCheck = () => {
     const { user } = useAuthStore();
     const { preferences, loading: preferencesLoading } = useUserPreferences();
     const [checking, setChecking] = useState(false);
-    const { sendPushNotification } = useNotification();
 
     const handleCheckNewProperties = async () => {
         if (!user?.$id) {
@@ -30,23 +28,13 @@ export const NewPropertiesCheck = () => {
             const result = await checkAndNotifyNewProperties({ userId: user.$id });
             console.log('✅ Property check result:', result);
 
-            if (result.success && result.count > 0 && result.property) {
-                console.log('📱 Sending push notification for property:', result.property.name);
-
-                await sendPushNotification(
-                    '🏠 New Property Match!',
-                    `We found a new ${result.property.type} property: ${result.property.name}`,
-                    {
-                        id: result.property.$id,
-                        type: 'new_property',
-                        screen: 'property-details'
-                    }
-                );
-                console.log('✅ Push notification sent');
-
+            // checkAndNotifyNewProperties already creates the notification and push.
+            if (!result.success) {
+                Alert.alert("Error", result.error || "Failed to check for new properties");
+            } else if (result.count > 0) {
                 Alert.alert("Success", `Found ${result.count} new properties! You should receive a notification shortly.`);
             } else {
-                Alert.alert("Success", `Found ${result.count} new properties!`);
+                Alert.alert("All caught up", "No new properties matching your preferences right now.");
             }
         } catch (error) {
             console.error('❌ Error checking new properties:', error);

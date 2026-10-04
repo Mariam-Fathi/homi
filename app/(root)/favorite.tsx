@@ -2,24 +2,30 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
-  SafeAreaView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useEffect } from "react";
-import { router } from "expo-router";
+import { useCallback, useEffect, useRef } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
 import { Card } from "@/components/Cards";
 
-import { getNotifications, getUserFavorites } from "@/lib/appwrite";
+import { getUserFavorites } from "@/lib/appwrite";
 import { useAppwrite } from "@/lib/useAppwrite";
 import { useAuthStore } from "@/store/authStore";
-import Search from "@/components/Search";
+import { useFavoritesStore } from "@/store/favoritesStore";
 
 const Favorites = () => {
   const { user } = useAuthStore();
+  const favoriteIds = useFavoritesStore((state) => state.ids);
+  const loadFavoriteIds = useFavoritesStore((state) => state.load);
+  const favoriteIdsReady = useFavoritesStore(
+    (state) => !!user?.$id && state.loadedFor === user.$id
+  );
+  const hasFocusedRef = useRef(false);
 
   const {
     data: favorites,
@@ -31,38 +37,37 @@ const Favorites = () => {
     skip: !user?.$id,
   });
 
-  const {
-    data: notifications,
-    refetch: refreshNotifications,
-    loading: notificationsLoading,
-  } = useAppwrite({
-    fn: getNotifications,
-    params: { userId: user?.$id || "" },
-    skip: !user?.$id,
-  });
-
-  const unreadCount = notifications?.filter((n: any) => !n.isRead).length || 0;
   useEffect(() => {
-    if (user?.$id) {
-      refetch({ userId: user.$id });
-    }
-  }, [user?.$id]);
+    if (user?.$id) loadFavoriteIds(user.$id);
+  }, [user?.$id, loadFavoriteIds]);
 
-  const handleCardPress = (property: any) => {
-    router.push(`/properties/${property.$id}`);
-  };
+  // Pick up favorites added elsewhere when returning to this screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return;
+      }
+      if (user?.$id) refetch({ userId: user.$id });
+    }, [user?.$id, refetch])
+  );
 
-  const handleBackPress = () => {
-    router.back();
+  // Hide properties un-hearted since the last fetch without waiting for a refetch.
+  const visibleFavorites = (favorites ?? []).filter(
+    (property) => !favoriteIdsReady || favoriteIds.has(property.$id)
+  );
+
+  const handleCardPress = (propertyId: string) => {
+    router.push(`/properties/${propertyId}`);
   };
 
   return (
     <SafeAreaView className="h-full bg-white">
       <FlatList
-        data={favorites || []}
+        data={visibleFavorites}
         numColumns={2}
         renderItem={({ item }) => (
-          <Card item={item} onPress={() => handleCardPress(item)} />
+          <Card item={item} onPress={() => handleCardPress(item.$id)} />
         )}
         keyExtractor={(item) => item.$id}
         contentContainerClassName="pb-32"
@@ -71,28 +76,6 @@ const Favorites = () => {
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" className="text-primary-300 mt-5" />
-          ) : !user?.$id ? (
-            <View className="flex items-center justify-center mt-20 px-5">
-              <Image
-                source={icons.heart}
-                className="w-24 h-24 mb-4"
-                tintColor="#9CA3AF"
-              />
-              <Text className="text-2xl font-rubik-bold text-black-300 mt-5">
-                Please Log In
-              </Text>
-              <Text className="text-base text-black-100 mt-2 text-center">
-                Sign in to view your favorite properties
-              </Text>
-              <TouchableOpacity
-                className="bg-primary-300 px-6 py-3 rounded-full mt-6"
-                onPress={() => router.push("/(auth)/auth")}
-              >
-                <Text className="text-white font-rubik-bold text-base">
-                  Log In
-                </Text>
-              </TouchableOpacity>
-            </View>
           ) : (
             <View className="flex items-center justify-center mt-20 px-5">
               <Image
@@ -109,7 +92,7 @@ const Favorites = () => {
             </View>
           )
         }
-        ListHeaderComponent={() => (
+        ListHeaderComponent={
           <View className="px-5">
             <View className="flex flex-row items-center justify-between mt-5">
               <View className={"flex-row gap-2 items-center"}>
@@ -126,7 +109,7 @@ const Favorites = () => {
               </View>
             </View>
           </View>
-        )}
+        }
       />
     </SafeAreaView>
   );

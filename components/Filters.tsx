@@ -11,8 +11,9 @@ const Filters = () => {
   );
 
   const handleCategoryPress = (category: string) => {
-    if (selectedCategory === category) {
-      setSelectedCategory("");
+    // Tapping the active category (or "All") clears the filter.
+    if (selectedCategory === category || category === "All") {
+      setSelectedCategory("All");
       router.setParams({ filter: "" });
       return;
     }

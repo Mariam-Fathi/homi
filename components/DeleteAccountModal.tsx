@@ -1,4 +1,3 @@
-// components/DeleteAccountModal.tsx
 import { useState } from "react";
 import {
   View,
@@ -8,7 +7,6 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { deleteAccount } from "@/lib/appwrite";
 import { useAuthStore } from "@/store/authStore";
 
 interface DeleteAccountModalProps {
@@ -18,6 +16,8 @@ interface DeleteAccountModalProps {
 
 const DeleteAccountModal = ({ visible, onClose }: DeleteAccountModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  // Goes through the store so the signed-in state is cleared afterwards.
+  const deleteAccount = useAuthStore((state) => state.deleteAccount);
 
   const handleDeleteAccount = async () => {
     Alert.alert(
@@ -37,25 +37,20 @@ const DeleteAccountModal = ({ visible, onClose }: DeleteAccountModalProps) => {
               const result = await deleteAccount();
 
               if (result.success) {
-                Alert.alert("Account Deleted", result.message, [
-                  { text: "OK" },
-                ]);
+                Alert.alert("Account Deleted", result.message);
+                onClose();
+              } else if (result.details?.sessionsCleared) {
+                // Account is gone/signed out but some cleanup failed.
+                Alert.alert("Account Deactivated", result.message);
                 onClose();
               } else {
-                Alert.alert(
-                  "Deletion Completed",
-                  "Your account has been deactivated and most data has been removed.",
-                  [{ text: "OK" }]
-                );
-                onClose();
+                Alert.alert("Deletion Failed", result.message);
               }
             } catch (error) {
               Alert.alert(
-                "Deletion Completed",
-                "Your account has been deactivated and your data has been removed.",
-                [{ text: "OK" }]
+                "Deletion Failed",
+                "An error occurred while deleting your account. Please try again."
               );
-              onClose();
             } finally {
               setIsDeleting(false);
             }
@@ -100,7 +95,7 @@ const DeleteAccountModal = ({ visible, onClose }: DeleteAccountModalProps) => {
             This action cannot be undone!
           </Text>
 
-          <View className="flex-row justify-between space-x-4">
+          <View className="flex-row justify-between gap-2">
             <TouchableOpacity
               onPress={onClose}
               disabled={isDeleting}
@@ -114,7 +109,7 @@ const DeleteAccountModal = ({ visible, onClose }: DeleteAccountModalProps) => {
             <TouchableOpacity
               onPress={handleDeleteAccount}
               disabled={isDeleting}
-              className="flex-1 bg-red-600 rounded-full py-3"
+              className="flex-1 bg-red-600 rounded-full py-3 flex-row justify-center items-center"
             >
               {isDeleting ? (
                 <ActivityIndicator size="small" color="white" />

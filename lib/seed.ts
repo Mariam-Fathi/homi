@@ -1,4 +1,4 @@
-import { ID } from "react-native-appwrite";
+import { ID, Query } from "react-native-appwrite";
 import { databases, config } from "./appwrite";
 import {
     agentImages,
@@ -69,16 +69,21 @@ async function seed() {
         // Clear existing data from all collections
         for (const key in COLLECTIONS) {
             const collectionId = COLLECTIONS[key as keyof typeof COLLECTIONS];
-            const documents = await databases.listDocuments(
-                config.databaseId!,
-                collectionId!
-            );
-            for (const doc of documents.documents) {
-                await databases.deleteDocument(
+            // listDocuments returns at most one page, so keep going until empty.
+            while (true) {
+                const documents = await databases.listDocuments(
                     config.databaseId!,
                     collectionId!,
-                    doc.$id
+                    [Query.limit(100)]
                 );
+                if (documents.documents.length === 0) break;
+                for (const doc of documents.documents) {
+                    await databases.deleteDocument(
+                        config.databaseId!,
+                        collectionId!,
+                        doc.$id
+                    );
+                }
             }
         }
 
@@ -140,7 +145,7 @@ async function seed() {
             const assignedReviews = getRandomSubset(reviews, 5, 7); // 5 to 7 reviews
             const assignedGalleries = getRandomSubset(galleries, 3, 8); // 3 to 8 galleries
 
-            const selectedFacilities = facilities
+            const selectedFacilities = [...facilities]
                 .sort(() => 0.5 - Math.random())
                 .slice(0, Math.floor(Math.random() * facilities.length) + 1);
 

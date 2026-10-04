@@ -73,6 +73,21 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         (error) => setError(error)
     );
 
+    const openNotificationTarget = (
+        response: Notifications.NotificationResponse
+    ) => {
+      const propertyId = response.notification.request.content.data?.id;
+      if (propertyId) {
+        router.push(`/properties/${propertyId}`);
+      }
+    };
+
+    // Handle a notification tap that launched the app from a killed state;
+    // the response listener below only sees taps while the app is running.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) openNotificationTarget(response);
+    });
+
     notificationListener.current =
         Notifications.addNotificationReceivedListener((notification) => {
           console.log("🔔 Notification Received: ", notification);
@@ -87,23 +102,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
               JSON.stringify(response.notification.request.content.data, null, 2)
           );
 
-          const data = response.notification.request.content.data;
-          const propertyId = data?.id;
-
-          if (propertyId) {
-            router.push(`/properties/${propertyId}`);
-          }
+          openNotificationTarget(response);
         });
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(
-            notificationListener.current
-        );
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, []);
 
