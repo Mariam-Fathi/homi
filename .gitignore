@@ -1,46 +1,26 @@
-# dependencies
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*firebase-adminsdk*.json
+google-services.json
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Node / Expo (also covered by mobile/.gitignore)
 node_modules/
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
+# Editors / OS
+.idea/
+.vscode/
 .DS_Store
-*.pem
-
-# local env files
-.env
-
-# typescript
-*.tsbuildinfo
-
-# Ignore native directories (if you are using EAS Build)
-
-/android
-/ios
-
-# Ignore test coverage reports
-
-/coverage
-
-google-services.json
-notifications-a739e-firebase-adminsdk-fbsvc-6c16252c88.json
+Thumbs.db
