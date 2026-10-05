@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: homi
+      POSTGRES_PASSWORD: homi
+      POSTGRES_DB: homi
+    ports:
+      - "5433:5432"  # 5433 on the host so a locally installed PostgreSQL can keep 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the separate test database used by the backend test suite.
+      - ./backend/scripts/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U homi -d homi"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://homi:homi@db:5432/homi
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      DEMO_LOGIN_ENABLED: ${DEMO_LOGIN_ENABLED:-true}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
