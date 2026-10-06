@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.db import engine
-from app.routers import auth, favorites, notifications, properties, users, viewings
+from app.routers import auth, events, favorites, notifications, properties, users, viewings
 
 
 def create_app() -> FastAPI:
@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
         favorites.router,
         notifications.router,
         viewings.router,
+        events.router,
     ):
         app.include_router(router)
 

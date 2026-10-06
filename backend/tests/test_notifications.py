@@ -1,4 +1,4 @@
-from app.models import Notification, PropertyView
+from app.models import Notification, NotificationKind, PropertyView
 from app.services.recommendations import analyze_preference
 
 
@@ -64,7 +64,7 @@ def test_match_is_notified_only_once(client, db, make_user, make_property, auth_
 
 def test_marking_read_is_scoped_to_the_owner(client, db, make_user, auth_headers):
     owner, other = make_user(), make_user()
-    note = Notification(user_id=owner.id, title="t", message="m")
+    note = Notification(user_id=owner.id, kind=NotificationKind.WELCOME, title="t", message="m")
     db.add(note)
     db.commit()
 

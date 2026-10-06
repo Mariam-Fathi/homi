@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select, update
 
+from app.events.recorder import ClientContext, client_context
 from app.models import Notification
 from app.schemas import NewPropertiesCheckOut, NotificationOut
 from app.security import CurrentUser, DbSession
 from app.services.recommendations import check_new_properties
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+Context = Annotated[ClientContext, Depends(client_context)]
 
 
 @router.get("", response_model=list[NotificationOut])
@@ -44,8 +48,10 @@ def mark_all_read(db: DbSession, user: CurrentUser) -> Response:
 
 
 @router.post("/check-new-properties", response_model=NewPropertiesCheckOut)
-def run_new_properties_check(db: DbSession, user: CurrentUser) -> NewPropertiesCheckOut:
-    result = check_new_properties(db, user.id)
+def run_new_properties_check(
+    db: DbSession, user: CurrentUser, context: Context
+) -> NewPropertiesCheckOut:
+    result = check_new_properties(db, user.id, context)
     return NewPropertiesCheckOut(
         reason=result.reason,
         notification=NotificationOut.model_validate(result.notification)

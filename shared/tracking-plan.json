@@ -1,0 +1,566 @@
+{
+  "app_opened": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "cold_start": {
+          "title": "Cold Start",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cold_start"
+      ],
+      "title": "AppOpened",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "favorite_added": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id"
+      ],
+      "title": "PropertyOnly",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "favorite_removed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id"
+      ],
+      "title": "PropertyOnly",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "filter_applied": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "maxLength": 50,
+          "title": "Filter",
+          "type": "string"
+        },
+        "results_count": {
+          "minimum": 0,
+          "title": "Results Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "filter",
+        "results_count"
+      ],
+      "title": "FilterApplied",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "notification_created": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "welcome",
+            "recommendation",
+            "viewing_status"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "notification_id": {
+          "title": "Notification Id",
+          "type": "string"
+        },
+        "property_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Property Id"
+        }
+      },
+      "required": [
+        "notification_id",
+        "kind",
+        "property_id"
+      ],
+      "title": "NotificationCreated",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "notification_opened": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "welcome",
+            "recommendation",
+            "viewing_status"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "notification_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Notification Id"
+        },
+        "property_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Property Id"
+        },
+        "via": {
+          "enum": [
+            "list",
+            "push"
+          ],
+          "title": "Via",
+          "type": "string"
+        }
+      },
+      "required": [
+        "notification_id",
+        "kind",
+        "property_id",
+        "via"
+      ],
+      "title": "NotificationOpened",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "property_card_clicked": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "list": {
+          "enum": [
+            "featured",
+            "home",
+            "explore",
+            "favorites"
+          ],
+          "title": "List",
+          "type": "string"
+        },
+        "position": {
+          "minimum": 0,
+          "title": "Position",
+          "type": "integer"
+        },
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "list",
+        "position"
+      ],
+      "title": "PropertyCardClicked",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "property_impression": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "list": {
+          "enum": [
+            "featured",
+            "home",
+            "explore",
+            "favorites"
+          ],
+          "title": "List",
+          "type": "string"
+        },
+        "position": {
+          "minimum": 0,
+          "title": "Position",
+          "type": "integer"
+        },
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "list",
+        "position"
+      ],
+      "title": "PropertyImpression",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "property_viewed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "card",
+            "notification",
+            "viewings",
+            "push",
+            "link"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "source"
+      ],
+      "title": "PropertyViewed",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "screen_viewed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "screen": {
+          "enum": [
+            "auth",
+            "home",
+            "explore",
+            "property",
+            "favorites",
+            "notifications",
+            "viewings",
+            "profile"
+          ],
+          "title": "Screen",
+          "type": "string"
+        }
+      },
+      "required": [
+        "screen"
+      ],
+      "title": "ScreenViewed",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "search_performed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "maxLength": 100,
+          "title": "Query",
+          "type": "string"
+        },
+        "results_count": {
+          "minimum": 0,
+          "title": "Results Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "query",
+        "results_count"
+      ],
+      "title": "SearchPerformed",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "sign_in_failed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "enum": [
+            "invalid_name",
+            "invalid_phone",
+            "not_mobile",
+            "server_error"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "SignInFailed",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "signed_in": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "const": "phone",
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "SignedIn",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "signed_out": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoProps",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "signed_up": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "enum": [
+            "phone",
+            "guest"
+          ],
+          "title": "Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method"
+      ],
+      "title": "SignedUp",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "viewing_form_abandoned": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        },
+        "seconds_open": {
+          "minimum": 0,
+          "title": "Seconds Open",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "property_id",
+        "seconds_open"
+      ],
+      "title": "ViewingFormAbandoned",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "viewing_form_opened": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id"
+      ],
+      "title": "PropertyOnly",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "viewing_form_validation_failed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "const": "phone",
+          "title": "Field",
+          "type": "string"
+        },
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "field"
+      ],
+      "title": "ViewingFormValidationFailed",
+      "type": "object"
+    },
+    "source": "app"
+  },
+  "viewing_requested": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "days_ahead": {
+          "minimum": 0,
+          "title": "Days Ahead",
+          "type": "integer"
+        },
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "time_slot": {
+          "enum": [
+            "morning",
+            "afternoon",
+            "evening"
+          ],
+          "title": "Time Slot",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "request_id",
+        "time_slot",
+        "days_ahead"
+      ],
+      "title": "ViewingRequested",
+      "type": "object"
+    },
+    "source": "server"
+  },
+  "viewing_status_changed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "changed_by": {
+          "enum": [
+            "agent",
+            "user"
+          ],
+          "title": "Changed By",
+          "type": "string"
+        },
+        "from_status": {
+          "enum": [
+            "requested",
+            "contacted",
+            "scheduled",
+            "completed",
+            "cancelled"
+          ],
+          "title": "From Status",
+          "type": "string"
+        },
+        "property_id": {
+          "maxLength": 36,
+          "minLength": 1,
+          "title": "Property Id",
+          "type": "string"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "to_status": {
+          "enum": [
+            "requested",
+            "contacted",
+            "scheduled",
+            "completed",
+            "cancelled"
+          ],
+          "title": "To Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "property_id",
+        "request_id",
+        "from_status",
+        "to_status",
+        "changed_by"
+      ],
+      "title": "ViewingStatusChanged",
+      "type": "object"
+    },
+    "source": "server"
+  }
+}
