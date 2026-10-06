@@ -124,6 +124,14 @@ class NotificationOpened(Props):
     via: Literal["list", "push"]
 
 
+# --- experiments -------------------------------------------------------------------------
+
+
+class ExperimentExposed(Props):
+    experiment: str = Field(max_length=64)
+    variant: str = Field(max_length=32)
+
+
 @dataclass(frozen=True)
 class EventSpec:
     source: Source
@@ -151,6 +159,7 @@ EVENTS: dict[str, EventSpec] = {
     "viewing_status_changed": EventSpec("server", ViewingStatusChanged),
     "notification_created": EventSpec("server", NotificationCreated),
     "notification_opened": EventSpec("app", NotificationOpened),
+    "experiment_exposed": EventSpec("app", ExperimentExposed),
 }
 
 

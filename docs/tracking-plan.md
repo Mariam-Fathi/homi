@@ -20,8 +20,8 @@ not tracked.
 5. **Notifications:** do recommendation notifications get opened, and do they lead
    to viewings?
 6. **Retention:** do users come back, and does activity in the first session predict it?
-7. **Experiments (Phase 4):** every metric above must be computable per experiment
-   variant.
+7. **Experiments:** every metric above must be computable per experiment variant,
+   for the people actually exposed to it.
 
 ## Funnel
 
@@ -105,6 +105,15 @@ Naming: `object_action` in past tense, snake_case (`property_viewed`, not `viewP
 |---|---|---|---|
 | `notification_created` | server | A notification is created for a user | `notification_id`, `kind`: `welcome` \| `recommendation` \| `viewing_status`, `property_id`: string \| null |
 | `notification_opened` | app | A notification is tapped (in the list or as a push) | `notification_id` \| null, `kind`, `property_id`: string \| null, `via`: `list` \| `push` |
+
+### Experiments
+
+| Event | Source | Fires when | Properties |
+|---|---|---|---|
+| `experiment_exposed` | app | An experiment's variant first changes what the person sees (not when they're merely assigned) | `experiment`: string, `variant`: string |
+
+See [experimentation.md](experimentation.md) for why exposure, not assignment, defines
+who is in an experiment.
 
 ## Privacy rules
 
