@@ -4,6 +4,10 @@ Frequentist, two-sided, fixed sample size: the sample size is computed up front 
 test is analyzed once it's reached. Looking repeatedly and stopping at the first
 significant result inflates false positives, so the dashboard shows progress towards
 the planned size, not a running verdict.
+
+With more than one challenger, each is compared with control at a Bonferroni-corrected
+level (alpha divided by the number of comparisons), so the chance of any false alarm
+across all comparisons stays at alpha.
 """
 
 from dataclasses import dataclass
@@ -26,10 +30,11 @@ class ProportionResult:
     ci_high: float
     relative_lift: float
     p_value: float
+    alpha: float = 0.05  # the level this comparison is judged at (CI is 1 - alpha)
 
     @property
     def significant(self) -> bool:
-        return self.p_value < 0.05
+        return self.p_value < self.alpha
 
 
 def sample_size_per_group(
@@ -77,6 +82,7 @@ def proportion_test(
         ci_high=diff + margin,
         relative_lift=diff / p_c if p_c else float("nan"),
         p_value=float(p_value),
+        alpha=alpha,
     )
 
 
@@ -140,7 +146,11 @@ SELECT
             AND e.occurred_at >= u.first_exposed_at) AS validation_failed,
     EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.user_id
             AND e.event_name = 'viewing_form_abandoned'
-            AND e.occurred_at >= u.first_exposed_at) AS abandoned
+            AND e.occurred_at >= u.first_exposed_at) AS abandoned,
+    EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.user_id
+            AND e.event_name = 'notification_opened'
+            AND e.properties ->> 'kind' = 'recommendation'
+            AND e.occurred_at >= u.first_exposed_at) AS opened_recommendation
 FROM per_user u
 """
 
@@ -156,26 +166,52 @@ class ExperimentReport:
     exposed: dict[str, int]
     conflicting_users: int
     srm_p_value: float
-    primary: ProportionResult  # viewing request after exposure
-    guardrail_validation: ProportionResult  # phone validation failed
-    guardrail_abandonment: ProportionResult  # form abandoned
+    alpha: float  # per comparison, after the Bonferroni correction
+    # variant -> metric -> comparison with control
+    results: dict[str, dict[str, ProportionResult]]
+
+    def result(self, metric: str, variant: str | None = None) -> ProportionResult:
+        """One comparison; `variant` may be omitted when there's a single challenger."""
+        if variant is None:
+            (variant,) = self.results
+        return self.results[variant][metric]
 
 
-def analyze(users: pd.DataFrame, shares: dict[str, float]) -> ExperimentReport:
+DEFAULT_METRICS = ("requested", "validation_failed", "abandoned")
+
+
+def analyze(
+    users: pd.DataFrame,
+    shares: dict[str, float],
+    metrics: tuple[str, ...] = DEFAULT_METRICS,
+    control: str = "control",
+    alpha: float = 0.05,
+) -> ExperimentReport:
+    """Each variant against control, on every metric, at a Bonferroni-corrected level."""
     conflicting = int((users["variants_seen"] > 1).sum())
     clean = users[users["variants_seen"] == 1]
     counts = clean["variant"].value_counts().to_dict()
+    challengers = [v for v in shares if v != control]
+    corrected = alpha / len(challengers)
 
-    def test(column: str) -> ProportionResult:
-        c = clean[clean["variant"] == "control"][column]
-        t = clean[clean["variant"] == "treatment"][column]
-        return proportion_test(int(c.sum()), len(c), int(t.sum()), len(t))
-
+    base = clean[clean["variant"] == control]
+    results = {}
+    for variant in challengers:
+        arm = clean[clean["variant"] == variant]
+        results[variant] = {
+            metric: proportion_test(
+                int(base[metric].sum()),
+                len(base),
+                int(arm[metric].sum()),
+                len(arm),
+                alpha=corrected,
+            )
+            for metric in metrics
+        }
     return ExperimentReport(
         exposed={v: int(counts.get(v, 0)) for v in shares},
         conflicting_users=conflicting,
         srm_p_value=sample_ratio_mismatch(counts, shares),
-        primary=test("requested"),
-        guardrail_validation=test("validation_failed"),
-        guardrail_abandonment=test("abandoned"),
+        alpha=corrected,
+        results=results,
     )

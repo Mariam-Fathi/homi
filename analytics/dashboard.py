@@ -167,26 +167,43 @@ trend.update_layout(
 st.plotly_chart(trend, width="stretch")
 
 # --- experiments ----------------------------------------------------------------------
-# Planned sizes come from the pre-registration (docs/experimentation.md).
-PLANNED_PER_GROUP = {"phone_autoformat": ab.sample_size_per_group(0.56, 0.10)}
+# Each experiment's plan comes from its pre-registration (docs/experimentation.md,
+# docs/recommender.md): planned size per arm, primary metric, guardrails.
+PLANS = {
+    "phone_autoformat": {
+        "planned": ab.sample_size_per_group(0.56, 0.10),
+        "primary": ("requested", "Viewing requested"),
+        "guardrails": [
+            ("validation_failed", "Phone validation failed"),
+            ("abandoned", "Form abandoned"),
+        ],
+    },
+    "recommender": {
+        "planned": ab.sample_size_per_group(0.08, 0.04, alpha=0.025),
+        "primary": ("opened_recommendation", "Opened a recommended listing"),
+        "guardrails": [("requested", "Viewing requested")],
+    },
+}
 
 st.header("Experiments")
 for key, experiment in EXPERIMENTS.items():
     st.subheader(f"`{key}`")
     st.caption(experiment.description)
+    plan = PLANS.get(key)
     users = ab.load_exposed_users(engine(), key)
-    if users.empty:
-        st.write("No exposures yet.")
+    if plan is None or users.empty:
+        st.write("No exposures yet." if plan else "No pre-registered plan.")
         continue
 
-    report = ab.analyze(users, experiment.variants)
-    planned = PLANNED_PER_GROUP.get(key)
+    primary, primary_label = plan["primary"]
+    metrics_used = (primary, *(m for m, _ in plan["guardrails"]))
+    report = ab.analyze(users, experiment.variants, metrics=metrics_used)
     smallest = min(report.exposed.values())
 
-    progress = st.columns(3)
-    for col, (variant, n) in zip(progress, report.exposed.items(), strict=False):
-        col.metric(f"Exposed: {variant}", f"{n:,}", help=f"Planned: {planned} per group")
-    progress[-1].metric("Sample ratio check", f"p = {report.srm_p_value:.3f}")
+    cols = st.columns(len(report.exposed) + 1)
+    for col, (variant, n) in zip(cols, report.exposed.items(), strict=False):
+        col.metric(f"Exposed: {variant}", f"{n:,}", help=f"Planned: {plan['planned']} per arm")
+    cols[-1].metric("Sample ratio check", f"p = {report.srm_p_value:.3f}")
 
     if report.srm_p_value < 0.001 or report.conflicting_users:
         st.error(
@@ -194,53 +211,65 @@ for key, experiment in EXPERIMENTS.items():
             "in both variants). Don't interpret the results until it's fixed."
         )
         continue
-    if planned and smallest < planned:
-        st.progress(smallest / planned, text=f"Collecting data: {smallest} of {planned} per group")
+    if smallest < plan["planned"]:
+        st.progress(
+            smallest / plan["planned"],
+            text=f"Collecting data: {smallest} of {plan['planned']} per arm",
+        )
         st.info(
             "Results are hidden until the planned sample size is reached: checking early "
             "and stopping at the first significant result inflates false positives."
         )
         continue
 
-    rows = {
-        "Viewing requested (primary)": report.primary,
-        "Phone validation failed (guardrail)": report.guardrail_validation,
-        "Form abandoned (guardrail)": report.guardrail_abandonment,
-    }
+    level = 1 - report.alpha
+    rows = []
+    for variant, results in report.results.items():
+        for metric, label in [plan["primary"], *plan["guardrails"]]:
+            r = results[metric]
+            role = "primary" if metric == primary else "guardrail"
+            rows.append(
+                {
+                    "Comparison": f"{variant} vs control",
+                    "Metric": f"{label} ({role})",
+                    "Control": r.control_rate,
+                    "Variant": r.treatment_rate,
+                    "Difference (pts)": r.difference * 100,
+                    f"{level:.1%} CI (pts)": f"[{r.ci_low * 100:+.1f}, {r.ci_high * 100:+.1f}]",
+                    "p-value": r.p_value,
+                }
+            )
     st.dataframe(
-        pd.DataFrame(
-            {
-                "Control": [r.control_rate for r in rows.values()],
-                "Treatment": [r.treatment_rate for r in rows.values()],
-                "Difference (pts)": [r.difference * 100 for r in rows.values()],
-                "95% CI (pts)": [
-                    f"[{r.ci_low * 100:+.1f}, {r.ci_high * 100:+.1f}]" for r in rows.values()
-                ],
-                "p-value": [r.p_value for r in rows.values()],
-            },
-            index=list(rows),
-        ).style.format(
+        pd.DataFrame(rows).style.format(
             {
                 "Control": "{:.1%}",
-                "Treatment": "{:.1%}",
+                "Variant": "{:.1%}",
                 "Difference (pts)": "{:+.1f}",
                 "p-value": "{:.2g}",
             }
         ),
         width="stretch",
+        hide_index=True,
     )
-    guardrails_ok = all(
-        not (r.significant and r.difference > 0)
-        for r in (report.guardrail_validation, report.guardrail_abandonment)
-    )
-    if report.primary.significant and report.primary.difference > 0 and guardrails_ok:
-        st.success(
-            f"Decision: **ship the treatment.** Viewing requests rose "
-            f"{report.primary.difference * 100:+.1f} points (95% CI "
-            f"{report.primary.ci_low * 100:+.1f} to {report.primary.ci_high * 100:+.1f}), "
-            f"and no guardrail got worse."
+    if len(report.results) > 1:
+        st.caption(
+            f"{len(report.results)} challengers, so each comparison is judged at "
+            f"p < {report.alpha:.3f} (Bonferroni) to keep the overall false-alarm rate at 5%."
         )
+
+    winners = []
+    for variant, results in report.results.items():
+        main = results[primary]
+        guardrails_ok = all(
+            # A guardrail fails if it moves significantly in the harmful direction:
+            # down for good outcomes (requests), up for problems (failures, abandonment).
+            not (results[m].significant and (results[m].difference < 0) == (m == "requested"))
+            for m, _ in plan["guardrails"]
+        )
+        if main.significant and main.difference > 0 and guardrails_ok:
+            winners.append((variant, main))
+    if winners:
+        names = ", ".join(f"**{v}** ({r.difference * 100:+.1f} pts)" for v, r in winners)
+        st.success(f"Beat control on {primary_label.lower()}, with no guardrail worse: {names}.")
     else:
-        st.warning(
-            "Decision: **keep the current version.** The pre-registered criteria weren't met."
-        )
+        st.warning("No variant beat control under the pre-registered criteria: keep control.")

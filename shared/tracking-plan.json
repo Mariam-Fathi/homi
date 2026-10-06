@@ -38,7 +38,7 @@
       "title": "ExperimentExposed",
       "type": "object"
     },
-    "source": "app"
+    "source": "both"
   },
   "favorite_added": {
     "properties": {

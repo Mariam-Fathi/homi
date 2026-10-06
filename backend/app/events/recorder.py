@@ -64,7 +64,7 @@ def record_server_event(
 ) -> None:
     """Adds a server-side event to the current transaction, so it's stored if and
     only if the change it describes is committed."""
-    assert EVENTS[event_name].source == "server", f"{event_name} is an app event"
+    assert EVENTS[event_name].source in ("server", "both"), f"{event_name} is an app event"
     context = context or ClientContext()
     # Write pending rows (e.g. the new user this event refers to) first; the events
     # table has a foreign key to users that SQLAlchemy can't order automatically.
