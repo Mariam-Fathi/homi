@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 import numpy as np
 from sqlalchemy import Engine, delete, select, text
 
+from app.experiments import EXPERIMENTS, assign
 from app.models import Event, Property, User
 from homi_analytics.db import get_engine
 
@@ -32,6 +33,13 @@ CLICK_INTEREST = {"Commercial": 0.3}
 FORM_OPEN_FACTOR = {"Villas": 0.25}
 # 4. Form friction: guests type their phone number and often get it wrong.
 VALIDATION_FAILURE = {"guest": 0.45, "phone": 0.03}
+
+# --- the planted experiment effect (Phase 4) -------------------------------------------
+# In the phone_autoformat treatment, guests' numbers are formatted as they type, so
+# fewer fail validation. Phone users' numbers are pre-filled, so nothing changes for
+# them and they're never exposed. Only applied when SimConfig.experiment is True.
+EXPERIMENT_KEY = "phone_autoformat"
+TREATMENT_GUEST_VALIDATION_FAILURE = 0.18
 # 5. Search dead ends: popular queries that match no listing.
 DEAD_END_QUERIES = ["duplex", "chalet", "penthouse"]
 
@@ -41,6 +49,13 @@ GROUND_TRUTH = {
     "conversion_problem": "Villas",
     "form_friction_segment": "guest",
     "dead_end_queries": DEAD_END_QUERIES,
+    "experiment": {
+        "key": EXPERIMENT_KEY,
+        "guest_validation_failure": {
+            "control": VALIDATION_FAILURE["guest"],
+            "treatment": TREATMENT_GUEST_VALIDATION_FAILURE,
+        },
+    },
 }
 
 # --- baseline behavior ------------------------------------------------------------------
@@ -70,6 +85,12 @@ class SimConfig:
     users: int = 2000
     days: int = 28
     seed: int = 7
+    # Run the phone_autoformat experiment. Off by default so earlier datasets (and the
+    # Phase 3 case study) stay exactly reproducible.
+    experiment: bool = False
+    # Validation only: put every exposed person in this variant, to measure the true
+    # effect by running the same people through both variants (see true_effect).
+    force_variant: str | None = None
     end: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -291,7 +312,22 @@ class _Generator:
         opened_at = step(20)
         self._emit("viewing_form_opened", opened_at, {"property_id": listing.id}, **app)
         segment = "guest" if person["guest"] else "phone"
-        if self._chance(VALIDATION_FAILURE[segment]):
+        failure_rate = VALIDATION_FAILURE[segment]
+        # Exposure is logged only where the variant changes something: guests type their
+        # number; phone users' is pre-filled.
+        if self.cfg.experiment and person["guest"]:
+            variant = self.cfg.force_variant or assign(
+                EXPERIMENTS[EXPERIMENT_KEY], person["user_id"]
+            )
+            self._emit(
+                "experiment_exposed",
+                step(1),
+                {"experiment": EXPERIMENT_KEY, "variant": variant},
+                **app,
+            )
+            if variant == "treatment":
+                failure_rate = TREATMENT_GUEST_VALIDATION_FAILURE
+        if self._chance(failure_rate):
             self._emit(
                 "viewing_form_validation_failed",
                 step(20),
@@ -404,6 +440,50 @@ class _Generator:
         person["pending_notification"] = {"id": notification_id, "listing": listing}
 
 
+def true_effect(catalog: list[_Listing], users: int = 40_000, seed: int = 99) -> dict:
+    """The primary metric's true value in each variant: the same simulated people,
+    run once with everyone in control and once with everyone in treatment. Only
+    possible in a simulation, and the benchmark the experiment's estimate is checked
+    against."""
+    rates = {}
+    for variant in ("control", "treatment"):
+        cfg = SimConfig(
+            users=users,
+            seed=seed,
+            experiment=True,
+            force_variant=variant,
+            end=datetime(2026, 10, 5, tzinfo=UTC),
+        )
+        gen = _Generator(cfg, catalog)
+        exposed = requested = 0
+        for _ in range(users):
+            gen.person()
+            first = next(
+                (e["occurred_at"] for e in gen.events if e["event_name"] == "experiment_exposed"),
+                None,
+            )
+            if first is not None:
+                exposed += 1
+                requested += any(
+                    e["event_name"] == "viewing_requested" and e["occurred_at"] >= first
+                    for e in gen.events
+                )
+            gen.events.clear()  # one person at a time keeps memory flat
+        rates[variant] = {"exposed": exposed, "rate": requested / exposed}
+    rates["difference"] = rates["treatment"]["rate"] - rates["control"]["rate"]
+    return rates
+
+
+def load_catalog(engine: Engine) -> list[_Listing]:
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(Property.id, Property.type, Property.name, Property.address).order_by(
+                Property.created_at.desc(), Property.id
+            )
+        ).all()
+    return [_Listing(*row) for row in rows]
+
+
 def clear_simulated(engine: Engine) -> None:
     with engine.begin() as conn:
         conn.execute(delete(Event).where(Event.app_version == LABEL))
@@ -411,16 +491,11 @@ def clear_simulated(engine: Engine) -> None:
 
 
 def simulate(engine: Engine, config: SimConfig) -> dict:
-    with engine.connect() as conn:
-        rows = conn.execute(
-            select(Property.id, Property.type, Property.name, Property.address).order_by(
-                Property.created_at.desc(), Property.id
-            )
-        ).all()
-    if not rows:
+    catalog = load_catalog(engine)
+    if not catalog:
         raise SystemExit("No properties found: run the backend seed on this database first.")
 
-    gen = _Generator(config, [_Listing(*row) for row in rows])
+    gen = _Generator(config, catalog)
     for _ in range(config.users):
         gen.person()
 
@@ -455,6 +530,9 @@ def main() -> None:
         default=None,
         help="last simulated day, YYYY-MM-DD (default: now); fix it to reproduce a dataset",
     )
+    parser.add_argument(
+        "--experiment", action="store_true", help="run the phone_autoformat A/B test"
+    )
     parser.add_argument("--reset", action="store_true", help="remove earlier simulated data first")
     args = parser.parse_args()
 
@@ -463,7 +541,7 @@ def main() -> None:
         print(f"Note: writing simulated data into '{engine.url.database}'.")
     if args.reset:
         clear_simulated(engine)
-    config = SimConfig(users=args.users, days=args.days, seed=args.seed)
+    config = SimConfig(users=args.users, days=args.days, seed=args.seed, experiment=args.experiment)
     if args.end:
         config.end = args.end
     summary = simulate(engine, config)

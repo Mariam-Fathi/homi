@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from app.experiments import EXPERIMENTS
+from homi_analytics import experiments as ab
 from homi_analytics import metrics
 from homi_analytics.db import get_engine
 from homi_analytics.models import apply_models
@@ -163,3 +165,82 @@ trend.update_layout(
     legend=dict(orientation="h"),
 )
 st.plotly_chart(trend, width="stretch")
+
+# --- experiments ----------------------------------------------------------------------
+# Planned sizes come from the pre-registration (docs/experimentation.md).
+PLANNED_PER_GROUP = {"phone_autoformat": ab.sample_size_per_group(0.56, 0.10)}
+
+st.header("Experiments")
+for key, experiment in EXPERIMENTS.items():
+    st.subheader(f"`{key}`")
+    st.caption(experiment.description)
+    users = ab.load_exposed_users(engine(), key)
+    if users.empty:
+        st.write("No exposures yet.")
+        continue
+
+    report = ab.analyze(users, experiment.variants)
+    planned = PLANNED_PER_GROUP.get(key)
+    smallest = min(report.exposed.values())
+
+    progress = st.columns(3)
+    for col, (variant, n) in zip(progress, report.exposed.items(), strict=False):
+        col.metric(f"Exposed: {variant}", f"{n:,}", help=f"Planned: {planned} per group")
+    progress[-1].metric("Sample ratio check", f"p = {report.srm_p_value:.3f}")
+
+    if report.srm_p_value < 0.001 or report.conflicting_users:
+        st.error(
+            "Assignment or exposure logging looks broken (sample ratio mismatch or people "
+            "in both variants). Don't interpret the results until it's fixed."
+        )
+        continue
+    if planned and smallest < planned:
+        st.progress(smallest / planned, text=f"Collecting data: {smallest} of {planned} per group")
+        st.info(
+            "Results are hidden until the planned sample size is reached: checking early "
+            "and stopping at the first significant result inflates false positives."
+        )
+        continue
+
+    rows = {
+        "Viewing requested (primary)": report.primary,
+        "Phone validation failed (guardrail)": report.guardrail_validation,
+        "Form abandoned (guardrail)": report.guardrail_abandonment,
+    }
+    st.dataframe(
+        pd.DataFrame(
+            {
+                "Control": [r.control_rate for r in rows.values()],
+                "Treatment": [r.treatment_rate for r in rows.values()],
+                "Difference (pts)": [r.difference * 100 for r in rows.values()],
+                "95% CI (pts)": [
+                    f"[{r.ci_low * 100:+.1f}, {r.ci_high * 100:+.1f}]" for r in rows.values()
+                ],
+                "p-value": [r.p_value for r in rows.values()],
+            },
+            index=list(rows),
+        ).style.format(
+            {
+                "Control": "{:.1%}",
+                "Treatment": "{:.1%}",
+                "Difference (pts)": "{:+.1f}",
+                "p-value": "{:.2g}",
+            }
+        ),
+        width="stretch",
+    )
+    guardrails_ok = all(
+        not (r.significant and r.difference > 0)
+        for r in (report.guardrail_validation, report.guardrail_abandonment)
+    )
+    if report.primary.significant and report.primary.difference > 0 and guardrails_ok:
+        st.success(
+            f"Decision: **ship the treatment.** Viewing requests rose "
+            f"{report.primary.difference * 100:+.1f} points (95% CI "
+            f"{report.primary.ci_low * 100:+.1f} to {report.primary.ci_high * 100:+.1f}), "
+            f"and no guardrail got worse."
+        )
+    else:
+        st.warning(
+            "Decision: **keep the current version.** The pre-registered criteria weren't met."
+        )

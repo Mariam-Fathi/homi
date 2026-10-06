@@ -16,6 +16,30 @@
     },
     "source": "app"
   },
+  "experiment_exposed": {
+    "properties": {
+      "additionalProperties": false,
+      "properties": {
+        "experiment": {
+          "maxLength": 64,
+          "title": "Experiment",
+          "type": "string"
+        },
+        "variant": {
+          "maxLength": 32,
+          "title": "Variant",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment",
+        "variant"
+      ],
+      "title": "ExperimentExposed",
+      "type": "object"
+    },
+    "source": "app"
+  },
   "favorite_added": {
     "properties": {
       "additionalProperties": false,

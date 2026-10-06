@@ -119,6 +119,15 @@ def main() -> None:
     status, result = call("POST", "/events", token, {"events": [event]})
     check("resent event deduplicated", result == {"accepted": 0, "duplicates": 1, "rejected": []})
 
+    status, assignments = call("GET", "/experiments/assignments", token)
+    check(
+        "experiment assignment",
+        status == 200 and assignments.get("phone_autoformat") in {"control", "treatment"},
+        assignments,
+    )
+    again = call("GET", "/experiments/assignments", token)[1]
+    check("assignment is sticky", again == assignments)
+
     check("delete account", call("DELETE", "/users/me", token)[0] == 204)
     check("token rejected after deletion", call("GET", "/users/me", token)[0] == 401)
     print("All smoke checks passed.")
