@@ -51,6 +51,7 @@ export interface AppEvents {
     property_id: string | null;
     via: "list" | "push";
   };
+  experiment_exposed: { experiment: string; variant: string };
 }
 
 export type AppEventName = keyof AppEvents;
@@ -70,4 +71,5 @@ export const APP_EVENT_NAMES: AppEventName[] = [
   "viewing_form_validation_failed",
   "viewing_form_abandoned",
   "notification_opened",
+  "experiment_exposed",
 ];

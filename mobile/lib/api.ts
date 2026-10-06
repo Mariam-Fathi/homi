@@ -202,3 +202,8 @@ export interface EventBatchResult {
 
 export const uploadEvents = (events: unknown[]) =>
   request<EventBatchResult>("POST", "/events", { body: { events } });
+
+// --- experiments ------------------------------------------------------------------
+
+export const getExperimentAssignments = () =>
+  request<Record<string, string>>("GET", "/experiments/assignments");

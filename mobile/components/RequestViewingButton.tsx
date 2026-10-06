@@ -25,6 +25,7 @@ import PhoneInput from "@/components/PhoneInput";
 import { checkPhone, splitE164 } from "@/lib/phone";
 import { useAuthStore } from "@/store/authStore";
 import { track } from "@/lib/analytics";
+import { useExperiment } from "@/hooks/useExperiment";
 import type { CountryCode } from "libphonenumber-js/max";
 
 const DAYS_AHEAD = 14;
@@ -83,20 +84,6 @@ const RequestViewingButton = ({
   const [visible, setVisible] = useState(false);
   const openedAt = useRef(0);
 
-  const openForm = () => {
-    openedAt.current = Date.now();
-    track("viewing_form_opened", { property_id: propertyId });
-    setVisible(true);
-  };
-
-  // Closing without a successful request (Cancel, back button, tapping outside).
-  const abandonForm = () => {
-    track("viewing_form_abandoned", {
-      property_id: propertyId,
-      seconds_open: Math.round((Date.now() - openedAt.current) / 1000),
-    });
-    setVisible(false);
-  };
   const [openRequest, setOpenRequest] = useState<ViewingRequest | null>(null);
   const [date, setDate] = useState(days[0].value);
   const [slot, setSlot] = useState<TimeSlot>("morning");
@@ -108,6 +95,27 @@ const RequestViewingButton = ({
     saved?.country ?? DEFAULT_COUNTRY
   );
   const [showPhoneError, setShowPhoneError] = useState(false);
+  const { variant: phoneFormatVariant, expose: exposePhoneFormat } =
+    useExperiment("phone_autoformat");
+  const guidedPhone = !saved && phoneFormatVariant === "treatment";
+
+  const openForm = () => {
+    openedAt.current = Date.now();
+    track("viewing_form_opened", { property_id: propertyId });
+    // The experiment only changes the form for people who type their number, so
+    // only they are exposed (docs/experimentation.md).
+    if (!saved) exposePhoneFormat();
+    setVisible(true);
+  };
+
+  // Closing without a successful request (Cancel, back button, tapping outside).
+  const abandonForm = () => {
+    track("viewing_form_abandoned", {
+      property_id: propertyId,
+      seconds_open: Math.round((Date.now() - openedAt.current) / 1000),
+    });
+    setVisible(false);
+  };
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -264,6 +272,7 @@ const RequestViewingButton = ({
                 Phone number
               </Text>
               <PhoneInput
+                guided={guidedPhone}
                 country={country}
                 onCountryChange={setCountry}
                 value={phone}

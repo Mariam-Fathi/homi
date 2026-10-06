@@ -1,7 +1,13 @@
 /**
  * @jest-environment node
  */
-import { checkPhone, formatPhone, splitE164 } from "@/lib/phone";
+import {
+  checkPhone,
+  exampleNumber,
+  formatAsTyped,
+  formatPhone,
+  splitE164,
+} from "@/lib/phone";
 
 describe("checkPhone", () => {
   it("normalizes a local Egyptian mobile to E.164", () => {
@@ -47,3 +53,31 @@ describe("formatting", () => {
     expect(formatPhone("+201001234567")).toBe("+20 10 01234567");
   });
 });
+
+describe("guided entry (phone_autoformat treatment)", () => {
+  it("formats the number as it's typed", () => {
+    expect(formatAsTyped("0101234567", "01012345678", "EG")).toBe("010 12345678");
+    expect(formatAsTyped("05012345", "050123456", "SA")).toBe("050 123 456");
+  });
+
+  it("doesn't reformat while deleting, so backspace works", () => {
+    expect(formatAsTyped("010 12345678", "010 1234567", "EG")).toBe("010 1234567");
+    expect(formatAsTyped("010 ", "010", "EG")).toBe("010");
+  });
+
+  it("formatted numbers still validate", () => {
+    const typed = formatAsTyped("", "01012345678", "EG");
+    expect(checkPhone(typed, "EG", { mobileOnly: true })).toMatchObject({
+      valid: true,
+      e164: "+201012345678",
+    });
+  });
+
+  it("shows a valid example for the selected country", () => {
+    for (const country of ["EG", "SA", "AE", "GB"] as const) {
+      const example = exampleNumber(country);
+      expect(checkPhone(example, country, { mobileOnly: true }).valid).toBe(true);
+    }
+  });
+});
+
