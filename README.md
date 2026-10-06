@@ -33,7 +33,8 @@ flowchart LR
 | [`mobile/`](mobile) | Expo SDK 52, React Native, TypeScript (strict), NativeWind, Zustand | Typed API client, encrypted token storage, per-country phone validation, optimistic favorites, viewing-request flow |
 | [`backend/`](backend) | Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16 | Phone + guest sign-in (JWT), libphonenumber validation, status pipeline with transition rules, rule-based recommendations, cascade-delete account removal |
 | Event tracking | [Tracking plan](docs/tracking-plan.md), shared JSON contract | 20 events; offline-safe batched client; validated, idempotent ingestion; server-recorded outcomes |
-| [`analytics/`](analytics) | SQL, pandas, Streamlit | Funnel data model, per-stage diagnosis, a user simulator with planted problems, dashboard |
+| [`analytics/`](analytics) | SQL, pandas, SciPy, Streamlit | Funnel data model, per-stage diagnosis, A/B test design and analysis, a user simulator with planted effects, dashboard |
+| Experiments | Hash-based assignment, exposure events | Sticky, independent variant assignment; exposure logged only where a variant changes what people see |
 | CI | GitHub Actions | Lint, type-check, unit/integration tests, migration drift check, Docker end-to-end smoke test |
 
 ## Run it locally
@@ -66,7 +67,7 @@ Sign in with a name and mobile number, or tap "Continue as Guest".
 |---|---|---|
 | Backend | `cd backend && pytest` | Every endpoint against a real PostgreSQL, with the schema built through the actual migrations |
 | Mobile | `cd mobile && npm test` | API client, phone validation, auth and favorites stores, data-fetching hook |
-| Analytics | `cd analytics && pytest` | The SQL data model, and that the analysis recovers every problem planted by the simulator |
+| Analytics | `cd analytics && pytest` | The SQL data model, the A/B test statistics (false-positive rate and power by simulation), and that the analysis recovers every effect planted by the simulator |
 | End to end | `python backend/scripts/smoke_test.py` | The full user journey against the running Docker stack |
 
 Backend tests expect the Docker database (`docker compose up -d db`), which exposes
@@ -97,6 +98,9 @@ PostgreSQL on port **5433** so it doesn't clash with a locally installed one.
   labeled usage with known problems planted on purpose. The analysis must find all of
   them, with no false alarms, in CI on every change: evidence the method works before
   it's trusted on real data.
+- **Experiments decided in advance.** The metric, sample size and decision rule are
+  [written down before the test runs](docs/experimentation.md); results are analyzed
+  once, at the planned size, and the dashboard won't show a verdict before then.
 - **Reproducible data.** The seed uses a fixed random seed, so every analysis built on it
   can be re-run and checked.
 
@@ -105,5 +109,5 @@ PostgreSQL on port **5433** so it doesn't clash with a locally installed one.
 - [x] **Phase 1 — Own backend:** FastAPI + PostgreSQL, viewing-request pipeline, CI
 - [x] **Phase 2 — Event tracking:** [tracking plan](docs/tracking-plan.md), batched offline-safe client, validated ingestion API
 - [x] **Phase 3 — Funnel analytics:** data model, diagnosis, simulator, dashboard — [case study](docs/case-study-funnel.md)
-- [ ] **Phase 4 — Experimentation:** assignment service, user simulator, A/B test with power analysis
+- [x] **Phase 4 — Experimentation:** assignment, exposure logging, pre-registered A/B test with power analysis — [case study](docs/case-study-experiment.md)
 - [ ] **Phase 5 — Recommender:** learned model evaluated offline and online against today's rule-based baseline
