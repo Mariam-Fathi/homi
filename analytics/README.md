@@ -10,6 +10,7 @@ defined in the [tracking plan](../docs/tracking-plan.md). Background and definit
 | Data model (SQL views in an `analytics` schema) | `homi_analytics/sql/` |
 | Metrics and diagnosis | `homi_analytics/metrics.py` |
 | A/B test design and analysis | `homi_analytics/experiments.py` |
+| Offline recommender evaluation | `homi_analytics/recommender_eval.py` (models: `backend/app/recommender.py`) |
 | User simulator with planted problems | `homi_analytics/simulator.py` |
 | Dashboard | `dashboard.py` |
 | Tests, including "the analysis finds every planted problem" | `tests/` |
@@ -48,6 +49,12 @@ python -m homi_analytics.simulator --users 2000 --days 28 --seed 7 --end 2026-10
 
 Every simulated row is labeled `app_version = "simulator"`; `--reset` removes earlier
 simulated data first.
+
+The recommender study uses its own database, `homi_reco`, with a 200-listing catalog
+(set `ANALYTICS_DATABASE_URL=postgresql+psycopg://homi:homi@localhost:5433/homi_reco`
+for these commands, and seed it with `python -m app.seed --reset --properties 200`
+from `backend/`). See [the case study](../docs/case-study-recommender.md) for the
+exact commands.
 
 To run the `phone_autoformat` experiment as well (reproduces the experiment case study):
 

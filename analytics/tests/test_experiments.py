@@ -99,5 +99,27 @@ def test_assignment_and_exposure_are_consistent(experiment):
 def test_the_planted_effect_shows_up_in_the_guardrail(experiment):
     # Failures drop from 45% to 18% per form: large enough to see at this size.
     report = analyze(experiment, EXPERIMENTS[EXPERIMENT_KEY].variants)
-    assert report.guardrail_validation.difference < -0.15
-    assert report.guardrail_validation.significant
+    validation = report.result("validation_failed")
+    assert validation.difference < -0.15
+    assert validation.significant
+
+
+def test_several_challengers_are_judged_at_a_corrected_level():
+    users = pd.DataFrame(
+        {
+            "variant": ["control"] * 100 + ["a"] * 100 + ["b"] * 100,
+            "variants_seen": [1] * 300,
+            "requested": [True] * 50
+            + [False] * 50
+            + [True] * 64
+            + [False] * 36
+            + [True] * 50
+            + [False] * 50,
+        }
+    )
+    report = analyze(users, {"control": 1 / 3, "a": 1 / 3, "b": 1 / 3}, metrics=("requested",))
+    assert report.alpha == pytest.approx(0.025)  # Bonferroni: two comparisons
+    a = report.result("requested", "a")
+    # p is about 0.047: significant on its own, but not after correcting for two looks.
+    assert 0.025 < a.p_value < 0.05
+    assert not a.significant
