@@ -17,6 +17,7 @@ import { getFavorites } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useAuthStore } from "@/store/authStore";
 import { useFavoritesStore } from "@/store/favoritesStore";
+import { useImpressionTracking, useScreenView } from "@/lib/analytics/hooks";
 
 const Favorites = () => {
   const { user } = useAuthStore();
@@ -26,6 +27,8 @@ const Favorites = () => {
     (state) => !!user?.id && state.loadedFor === user.id
   );
   const hasFocusedRef = useRef(false);
+  useScreenView("favorites");
+  const impressions = useImpressionTracking("favorites");
 
   const {
     data: favorites,
@@ -56,19 +59,16 @@ const Favorites = () => {
     (property) => !favoriteIdsReady || favoriteIds.has(property.id)
   );
 
-  const handleCardPress = (propertyId: string) => {
-    router.push(`/properties/${propertyId}`);
-  };
-
   return (
     <SafeAreaView className="h-full bg-white">
       <FlatList
         data={visibleFavorites}
         numColumns={2}
-        renderItem={({ item }) => (
-          <Card item={item} onPress={() => handleCardPress(item.id)} />
+        renderItem={({ item, index }) => (
+          <Card item={item} list="favorites" position={index} />
         )}
         keyExtractor={(item) => item.id}
+        {...impressions}
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
         showsVerticalScrollIndicator={false}

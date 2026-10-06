@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models import NotificationType, TimeSlot, UserRole, ViewingStatus
+from app.models import NotificationKind, NotificationType, TimeSlot, UserRole, ViewingStatus
 from app.phone import normalize_phone
 
 
@@ -106,6 +106,7 @@ class PropertyPage(BaseModel):
 
 class NotificationOut(ORMModel):
     id: str
+    kind: NotificationKind
     title: str
     message: str
     type: NotificationType

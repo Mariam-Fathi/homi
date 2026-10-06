@@ -1,7 +1,7 @@
 """End-to-end smoke test against a running API (default http://localhost:8000).
 
 Walks the main user journey: phone and guest login → browse → favorite → view →
-request a viewing → notifications → account deletion. Exits non-zero on the first
+request a viewing → notifications → analytics events → account deletion. Exits non-zero on the first
 failure.
 
     python scripts/smoke_test.py [BASE_URL]
@@ -12,7 +12,8 @@ import random
 import sys
 import urllib.error
 import urllib.request
-from datetime import date, timedelta
+import uuid
+from datetime import UTC, date, datetime, timedelta
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
 
@@ -102,6 +103,21 @@ def main() -> None:
         status == 200 and result["reason"] == "welcome",
         result["notification"]["message"] if result["notification"] else "",
     )
+
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "event_name": "screen_viewed",
+        "occurred_at": datetime.now(UTC).isoformat(),
+        "anonymous_id": str(uuid.uuid4()),
+        "session_id": str(uuid.uuid4()),
+        "platform": "android",
+        "app_version": "smoke",
+        "properties": {"screen": "home"},
+    }
+    status, result = call("POST", "/events", token, {"events": [event]})
+    check("event ingested", status == 200 and result["accepted"] == 1)
+    status, result = call("POST", "/events", token, {"events": [event]})
+    check("resent event deduplicated", result == {"accepted": 0, "duplicates": 1, "rejected": []})
 
     check("delete account", call("DELETE", "/users/me", token)[0] == 204)
     check("token rejected after deletion", call("GET", "/users/me", token)[0] == 401)

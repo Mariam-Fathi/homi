@@ -9,3 +9,9 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (key) => void store.delete(key)),
   };
 });
+
+// Native modules that don't exist under Jest.
+jest.mock("@react-native-async-storage/async-storage", () =>
+  require("@react-native-async-storage/async-storage/jest/async-storage-mock")
+);
+jest.mock("expo-crypto", () => ({ randomUUID: () => require("crypto").randomUUID() }));

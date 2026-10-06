@@ -8,6 +8,7 @@ import {
   setUnauthorizedHandler,
 } from "@/lib/api";
 import { tokenStorage } from "@/lib/tokenStorage";
+import { flushAnalytics, setAnalyticsUser, track } from "@/lib/analytics";
 import type { TokenResponse, User } from "@/types/api";
 
 export interface DeleteAccountResult {
@@ -20,7 +21,11 @@ interface StoreType {
   loading: boolean;
   user: User | null;
   fetchCurrentUser: () => Promise<void>;
-  loginWithPhone: (input: { name: string; phone: string; country: string }) => Promise<void>;
+  loginWithPhone: (input: {
+    name: string;
+    phone: string;
+    country: string;
+  }) => Promise<void>;
   loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<DeleteAccountResult>;
@@ -29,11 +34,13 @@ interface StoreType {
 export const useAuthStore = create<StoreType>((set) => {
   const startSession = async ({ access_token, user }: TokenResponse) => {
     await tokenStorage.set(access_token);
+    setAnalyticsUser(user.id);
     set({ user, isAuthenticated: true });
   };
 
   const endSession = async () => {
     await tokenStorage.clear();
+    setAnalyticsUser(null);
     set({ user: null, isAuthenticated: false });
   };
 
@@ -57,10 +64,12 @@ export const useAuthStore = create<StoreType>((set) => {
           return;
         }
         const user = await getMe();
+        setAnalyticsUser(user.id);
         set({ user, isAuthenticated: true });
       } catch (error) {
         // Keep the token on network errors so an offline launch doesn't log people out.
-        if (error instanceof ApiError && error.status === 401) await endSession();
+        if (error instanceof ApiError && error.status === 401)
+          await endSession();
         else console.log("Session check failed:", error);
       } finally {
         set({ loading: false });
@@ -76,6 +85,13 @@ export const useAuthStore = create<StoreType>((set) => {
     },
 
     logout: async () => {
+      // Upload signed_out (and anything queued) while the token still identifies the
+      // user; don't let a slow network hold up signing out.
+      track("signed_out", {});
+      await Promise.race([
+        flushAnalytics(),
+        new Promise((r) => setTimeout(r, 2000)),
+      ]);
       // Tokens are stateless, so signing out is local.
       await endSession();
     },
@@ -87,7 +103,8 @@ export const useAuthStore = create<StoreType>((set) => {
         await endSession();
         return {
           success: true,
-          message: "Your account and all of your data have been permanently deleted.",
+          message:
+            "Your account and all of your data have been permanently deleted.",
         };
       } catch (error) {
         console.error("Delete account error:", error);

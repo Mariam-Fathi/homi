@@ -16,16 +16,20 @@ app's conversion event. It then moves through an agent pipeline
 flowchart LR
     app["Mobile app<br/>Expo · React Native · TypeScript"]
     api["API<br/>FastAPI · SQLAlchemy"]
-    db[("PostgreSQL")]
+    db[("PostgreSQL<br/>app data")]
+    events[("events table")]
 
     app -- "JWT-authenticated REST" --> api
+    app -- "batched analytics events" --> api
     api --> db
+    api -- "validated against the tracking plan" --> events
 ```
 
 | Part | Stack | Highlights |
 |---|---|---|
 | [`mobile/`](mobile) | Expo SDK 52, React Native, TypeScript (strict), NativeWind, Zustand | Typed API client, encrypted token storage, per-country phone validation, optimistic favorites, viewing-request flow |
 | [`backend/`](backend) | Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16 | Phone + guest sign-in (JWT), libphonenumber validation, status pipeline with transition rules, rule-based recommendations, cascade-delete account removal |
+| Analytics | [Tracking plan](docs/tracking-plan.md), shared JSON contract | 20 events; offline-safe batched client; validated, idempotent ingestion; server-recorded outcomes |
 | CI | GitHub Actions | Lint, type-check, unit/integration tests, migration drift check, Docker end-to-end smoke test |
 
 ## Run it locally
@@ -80,13 +84,17 @@ PostgreSQL on port **5433** so it doesn't clash with a locally installed one.
   first step before real users.
 - **Guest accounts.** Anyone can try the app in one tap; each guest is a separate
   user, so their activity doesn't mix.
+- **Events have one owner.** Outcomes (sign-ups, favorites, viewing requests) are
+  recorded by the server in the same transaction as the change, so they can't be lost
+  or faked; only interactions the server can't see come from the app. The app's event
+  list and the API's registry are checked against each other in CI.
 - **Reproducible data.** The seed uses a fixed random seed, so every analysis built on it
   can be re-run and checked.
 
 ## Roadmap
 
 - [x] **Phase 1 — Own backend:** FastAPI + PostgreSQL, viewing-request pipeline, CI
-- [ ] **Phase 2 — Event tracking:** event schema, batched client tracking, ingestion API
+- [x] **Phase 2 — Event tracking:** [tracking plan](docs/tracking-plan.md), batched offline-safe client, validated ingestion API
 - [ ] **Phase 3 — Funnel analytics:** data model, dashboard, drop-off diagnosis
 - [ ] **Phase 4 — Experimentation:** assignment service, user simulator, A/B test with power analysis
 - [ ] **Phase 5 — Recommender:** learned model evaluated offline and online against today's rule-based baseline

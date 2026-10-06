@@ -31,6 +31,8 @@ export default function RootLayout() {
         if (notification) {
           showLocalNotification(notification.title, notification.message, {
             id: notification.related_property_id,
+            notification_id: notification.id,
+            kind: notification.kind,
           });
         }
       })

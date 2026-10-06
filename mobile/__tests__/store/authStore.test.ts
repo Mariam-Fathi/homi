@@ -12,7 +12,14 @@ jest.mock("@/lib/api", () => {
   };
 });
 
+jest.mock("@/lib/analytics", () => ({
+  track: jest.fn(),
+  flushAnalytics: jest.fn().mockResolvedValue(undefined),
+  setAnalyticsUser: jest.fn(),
+}));
+
 import { ApiError, deleteMyAccount, getMe, loginAsGuest } from "@/lib/api";
+import { flushAnalytics, track } from "@/lib/analytics";
 import { tokenStorage } from "@/lib/tokenStorage";
 import { useAuthStore } from "@/store/authStore";
 import type { User } from "@/types/api";
@@ -83,5 +90,22 @@ describe("authStore", () => {
 
     expect(result).toEqual({ success: false, message: "boom" });
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it("logout records signed_out and uploads it before the token is cleared", async () => {
+    await tokenStorage.set("tok");
+    useAuthStore.setState({ user, isAuthenticated: true });
+    let tokenAtFlush: string | null = "unset";
+    (flushAnalytics as jest.Mock).mockImplementation(async () => {
+      tokenAtFlush = await tokenStorage.get();
+    });
+
+    await useAuthStore.getState().logout();
+
+    expect(track).toHaveBeenCalledWith("signed_out", {});
+    // Uploaded while still signed in, so the event is attributed to the user.
+    expect(tokenAtFlush).toBe("tok");
+    expect(await tokenStorage.get()).toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 });

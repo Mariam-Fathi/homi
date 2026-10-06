@@ -20,7 +20,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Notification, NotificationType, Property, PropertyView, User
+from app.events.recorder import ClientContext
+from app.models import Notification, NotificationKind, Property, PropertyView, User
+from app.services.notifications import create_notification
 
 RECENT_VIEWS = 20
 MIN_VIEWS = 3
@@ -68,7 +70,9 @@ def _area(address: str) -> str:
     return parts[1] if len(parts) >= 3 else (address or "your area")
 
 
-def check_new_properties(db: Session, user_id: str) -> CheckResult:
+def check_new_properties(
+    db: Session, user_id: str, context: ClientContext | None = None
+) -> CheckResult:
     preference = analyze_preference(db, user_id)
 
     if preference is None:
@@ -78,16 +82,17 @@ def check_new_properties(db: Session, user_id: str) -> CheckResult:
 
         user = db.get(User, user_id)
         first_name = user.name.split()[0] if user and not user.is_demo else None
-        notification = Notification(
+        notification = create_notification(
+            db,
             user_id=user_id,
+            kind=NotificationKind.WELCOME,
             title=f"🏠 Welcome to Homi, {first_name}!" if first_name else "🏠 Welcome to Homi!",
             message=(
                 "Browse homes and save the ones you like. Once we learn what you're "
                 "looking for, we'll let you know when matching properties are listed."
             ),
-            type=NotificationType.INFO,
+            context=context,
         )
-        db.add(notification)
         db.commit()
         return CheckResult("welcome", notification)
 
@@ -111,13 +116,14 @@ def check_new_properties(db: Session, user_id: str) -> CheckResult:
     if candidate is None:
         return CheckResult("no_new_matches")
 
-    notification = Notification(
+    notification = create_notification(
+        db,
         user_id=user_id,
+        kind=NotificationKind.RECOMMENDATION,
         title="🏠 New Property You Might Like!",
         message=f"{candidate.name} just listed in {_area(candidate.address)}.",
-        type=NotificationType.INFO,
-        related_property_id=candidate.id,
+        property_id=candidate.id,
+        context=context,
     )
-    db.add(notification)
     db.commit()
     return CheckResult("new_match", notification)

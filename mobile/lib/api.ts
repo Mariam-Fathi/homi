@@ -19,16 +19,22 @@ if (!API_URL) {
 }
 
 export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
+  constructor(readonly status: number, message: string) {
     super(message);
     this.name = "ApiError";
   }
 }
 
 // Called when the API rejects our token (expired or the account was deleted).
+// Analytics ids sent as headers so events the server records join the app's session.
+// Registered by lib/analytics (which imports this module, so it can't be imported here).
+let contextHeaders: () => Record<string, string> = () => ({});
+export const setContextHeadersProvider = (
+  provider: () => Record<string, string>
+) => {
+  contextHeaders = provider;
+};
+
 let onUnauthorized: (() => void) | null = null;
 export const setUnauthorizedHandler = (handler: (() => void) | null) => {
   onUnauthorized = handler;
@@ -39,14 +45,22 @@ type Query = Record<string, string | number | undefined>;
 async function request<T>(
   method: string,
   path: string,
-  { body, query, auth = true }: { body?: unknown; query?: Query; auth?: boolean } = {}
+  {
+    body,
+    query,
+    auth = true,
+  }: { body?: unknown; query?: Query; auth?: boolean } = {}
 ): Promise<T> {
   const url = new URL(path, API_URL);
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
+    if (value !== undefined && value !== "")
+      url.searchParams.set(key, String(value));
   }
 
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...contextHeaders(),
+  };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (auth) {
     const token = await tokenStorage.get();
@@ -61,14 +75,20 @@ async function request<T>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
+    throw new ApiError(
+      0,
+      "Can't reach the server. Check your connection and try again."
+    );
   }
 
   if (response.status === 401 && auth) onUnauthorized?.();
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new ApiError(response.status, describeError(payload, response.status));
+    throw new ApiError(
+      response.status,
+      describeError(payload, response.status)
+    );
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -79,13 +99,18 @@ function describeError(payload: any, status: number): string {
   const detail = payload?.detail;
   if (typeof detail === "string") return detail;
   // Pydantic prefixes messages from custom validators with "Value error, ".
-  if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg.replace(/^Value error, /, "");
+  if (Array.isArray(detail) && detail[0]?.msg)
+    return detail[0].msg.replace(/^Value error, /, "");
   return `Request failed (${status})`;
 }
 
 // --- auth ---------------------------------------------------------------------
 
-export const loginWithPhone = (input: { name: string; phone: string; country: string }) =>
+export const loginWithPhone = (input: {
+  name: string;
+  phone: string;
+  country: string;
+}) =>
   request<TokenResponse>("POST", "/auth/phone", { body: input, auth: false });
 
 export const loginAsGuest = () =>
@@ -108,7 +133,7 @@ export const getProperties = ({
 }) =>
   request<PropertyPage>("GET", "/properties", {
     query: { type: filter, q: query, limit },
-  }).then((page) => page.items);
+  });
 
 export const getFeaturedProperties = () =>
   request<PropertySummary[]>("GET", "/properties/featured");
@@ -121,7 +146,8 @@ export const recordPropertyView = (propertyId: string) =>
 
 // --- favorites ------------------------------------------------------------------
 
-export const getFavorites = () => request<PropertySummary[]>("GET", "/favorites");
+export const getFavorites = () =>
+  request<PropertySummary[]>("GET", "/favorites");
 
 export const getFavoriteIds = () => request<string[]>("GET", "/favorites/ids");
 
@@ -133,10 +159,14 @@ export const removeFavorite = (propertyId: string) =>
 
 // --- notifications --------------------------------------------------------------
 
-export const getNotifications = () => request<AppNotification[]>("GET", "/notifications");
+export const getNotifications = () =>
+  request<AppNotification[]>("GET", "/notifications");
 
 export const markNotificationAsRead = (notificationId: string) =>
-  request<void>("POST", `/notifications/${encodeURIComponent(notificationId)}/read`);
+  request<void>(
+    "POST",
+    `/notifications/${encodeURIComponent(notificationId)}/read`
+  );
 
 export const markAllNotificationsAsRead = () =>
   request<void>("POST", "/notifications/read-all");
@@ -149,10 +179,26 @@ export const checkNewProperties = () =>
 export const createViewingRequest = (input: ViewingRequestInput) =>
   request<ViewingRequest>("POST", "/viewing-requests", { body: input });
 
-export const getMyViewingRequests = ({ propertyId }: { propertyId?: string } = {}) =>
+export const getMyViewingRequests = ({
+  propertyId,
+}: { propertyId?: string } = {}) =>
   request<ViewingRequest[]>("GET", "/viewing-requests", {
     query: { property_id: propertyId },
   });
 
 export const cancelViewingRequest = (requestId: string) =>
-  request<ViewingRequest>("POST", `/viewing-requests/${encodeURIComponent(requestId)}/cancel`);
+  request<ViewingRequest>(
+    "POST",
+    `/viewing-requests/${encodeURIComponent(requestId)}/cancel`
+  );
+
+// --- analytics --------------------------------------------------------------------
+
+export interface EventBatchResult {
+  accepted: number;
+  duplicates: number;
+  rejected: { event_id: string; error: string }[];
+}
+
+export const uploadEvents = (events: unknown[]) =>
+  request<EventBatchResult>("POST", "/events", { body: { events } });

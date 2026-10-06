@@ -1,22 +1,32 @@
 import icons from "@/constants/icons";
 import images from "@/constants/images";
 import { Image, Text, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
 import { useFavorites } from "@/hooks/useFavorites";
+import { track, type PropertyList } from "@/lib/analytics";
 import type { PropertySummary } from "@/types/api";
 
 interface Props {
   item: PropertySummary;
-  onPress?: () => void;
+  /** Which list the card is in and its index, for click and impression analytics. */
+  list: PropertyList;
+  position: number;
 }
+
+const openProperty = ({ item, list, position }: Props) => {
+  track("property_card_clicked", { property_id: item.id, list, position });
+  router.push(`/properties/${item.id}?source=card`);
+};
 
 const formatPrice = (price: number) => `EGP ${price.toLocaleString()}`;
 
-export const FeaturedCard = ({ item, onPress }: Props) => {
+export const FeaturedCard = (props: Props) => {
+  const { item } = props;
   const { isSaved, handleHeartPress, hasUser } = useFavorites(item.id);
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => openProperty(props)}
       className="flex flex-col items-start w-60 h-80 relative"
       activeOpacity={0.9}
     >
@@ -74,13 +84,14 @@ export const FeaturedCard = ({ item, onPress }: Props) => {
   );
 };
 
-export const Card = ({ item, onPress }: Props) => {
+export const Card = (props: Props) => {
+  const { item } = props;
   const { isSaved, handleHeartPress, hasUser } = useFavorites(item.id);
 
   return (
     <TouchableOpacity
       className="flex-1 w-full mt-4 px-3 py-4 rounded-lg bg-white shadow-lg shadow-black-100/70 relative"
-      onPress={onPress}
+      onPress={() => openProperty(props)}
       activeOpacity={0.9}
     >
       <View className="flex flex-row items-center absolute px-2 top-5 right-5 bg-white/90 p-1 rounded-full z-50">

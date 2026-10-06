@@ -21,9 +21,10 @@ describe("api client", () => {
     await tokenStorage.set("abc");
     mockFetch(200, { items: [{ id: "p1" }], total: 1, limit: 6, offset: 0 });
 
-    const items = await getProperties({ filter: "Villas", query: "", limit: 6 });
+    const page = await getProperties({ filter: "Villas", query: "", limit: 6 });
 
-    expect(items).toEqual([{ id: "p1" }]);
+    expect(page.items).toEqual([{ id: "p1" }]);
+    expect(page.total).toBe(1);
     const [url, init] = (global.fetch as jest.Mock).mock.calls[0];
     // Empty params are dropped instead of sent as `q=`.
     expect(url).toBe("http://api.test/properties?type=Villas&limit=6");

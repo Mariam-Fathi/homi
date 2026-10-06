@@ -20,6 +20,8 @@ import type { CountryCode } from "libphonenumber-js/max";
 import PhoneInput from "@/components/PhoneInput";
 import { DEFAULT_COUNTRY } from "@/constants/countries";
 import { checkPhone } from "@/lib/phone";
+import { track } from "@/lib/analytics";
+import { useScreenView } from "@/lib/analytics/hooks";
 
 const Auth = () => {
   const { isAuthenticated, loading, loginWithPhone, loginAsGuest } =
@@ -29,6 +31,7 @@ const Auth = () => {
   const [country, setCountry] = useState<CountryCode>(DEFAULT_COUNTRY);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState<"phone" | "guest" | null>(null);
+  useScreenView("auth");
 
   const trimmedName = name.trim().replace(/\s+/g, " ");
   const nameError = trimmedName.length < 2 ? "Enter your name" : null;
@@ -40,6 +43,7 @@ const Auth = () => {
       setBusy(kind);
       await attempt();
     } catch (error) {
+      track("sign_in_failed", { reason: "server_error" });
       notify(
         "Sign-in failed",
         error instanceof Error ? error.message : "Please try again."
@@ -51,7 +55,16 @@ const Auth = () => {
 
   const handleContinue = () => {
     setSubmitted(true);
-    if (nameError || !phoneResult.valid) return;
+    if (nameError || !phoneResult.valid) {
+      track("sign_in_failed", {
+        reason: nameError
+          ? "invalid_name"
+          : phoneError === "Enter a mobile number"
+          ? "not_mobile"
+          : "invalid_phone",
+      });
+      return;
+    }
     run("phone", () =>
       loginWithPhone({ name: trimmedName, phone: phoneResult.e164, country })
     );

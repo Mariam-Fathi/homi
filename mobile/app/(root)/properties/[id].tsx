@@ -19,12 +19,26 @@ import { facilities } from "@/constants/data";
 
 import { useApi } from "@/lib/useApi";
 import { getPropertyById, recordPropertyView } from "@/lib/api";
+import { track, type PropertyViewSource } from "@/lib/analytics";
+import { useScreenView } from "@/lib/analytics/hooks";
+
+const VIEW_SOURCES: PropertyViewSource[] = [
+  "card",
+  "notification",
+  "viewings",
+  "push",
+  "link",
+];
 import { FavoriteButton } from "@/components/FavoriteButton";
 import UserAvatar from "@/components/UserAvatar";
 import RequestViewingButton from "@/components/RequestViewingButton";
 
 const Property = () => {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, source } = useLocalSearchParams<{
+    id?: string;
+    source?: string;
+  }>();
+  useScreenView("property");
   const windowHeight = Dimensions.get("window").height;
 
   const { data: property, loading } = useApi({
@@ -38,6 +52,9 @@ const Property = () => {
   // Count a view however the screen was reached (card, notification, viewings list).
   useEffect(() => {
     if (!id) return;
+    // Anything opened without a known source (e.g. a shared link) counts as "link".
+    const viewSource = VIEW_SOURCES.find((s) => s === source) ?? "link";
+    track("property_viewed", { property_id: id, source: viewSource });
     recordPropertyView(id).catch((error) =>
       console.log("Failed to record view:", error)
     );
