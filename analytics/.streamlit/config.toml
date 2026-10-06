@@ -1,0 +1,7 @@
+# Only reachable from this computer, and no usage statistics sent to Streamlit.
+[server]
+address = "localhost"
+headless = true
+
+[browser]
+gatherUsageStats = false

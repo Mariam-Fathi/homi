@@ -9,8 +9,8 @@ services:
       - "5433:5432"  # 5433 on the host so a locally installed PostgreSQL can keep 5432
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Creates the separate test database used by the backend test suite.
-      - ./backend/scripts/create-test-db.sql:/docker-entrypoint-initdb.d/create-test-db.sql:ro
+      # Creates the test and simulation databases.
+      - ./backend/scripts/create-databases.sql:/docker-entrypoint-initdb.d/create-databases.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U homi -d homi"]
       interval: 2s
