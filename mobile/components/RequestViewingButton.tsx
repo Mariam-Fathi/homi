@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -24,6 +24,7 @@ import { DEFAULT_COUNTRY } from "@/constants/countries";
 import PhoneInput from "@/components/PhoneInput";
 import { checkPhone, splitE164 } from "@/lib/phone";
 import { useAuthStore } from "@/store/authStore";
+import { track } from "@/lib/analytics";
 import type { CountryCode } from "libphonenumber-js/max";
 
 const DAYS_AHEAD = 14;
@@ -80,6 +81,22 @@ const RequestViewingButton = ({
 }) => {
   const days = useMemo(upcomingDays, []);
   const [visible, setVisible] = useState(false);
+  const openedAt = useRef(0);
+
+  const openForm = () => {
+    openedAt.current = Date.now();
+    track("viewing_form_opened", { property_id: propertyId });
+    setVisible(true);
+  };
+
+  // Closing without a successful request (Cancel, back button, tapping outside).
+  const abandonForm = () => {
+    track("viewing_form_abandoned", {
+      property_id: propertyId,
+      seconds_open: Math.round((Date.now() - openedAt.current) / 1000),
+    });
+    setVisible(false);
+  };
   const [openRequest, setOpenRequest] = useState<ViewingRequest | null>(null);
   const [date, setDate] = useState(days[0].value);
   const [slot, setSlot] = useState<TimeSlot>("morning");
@@ -112,6 +129,10 @@ const RequestViewingButton = ({
 
   const submit = async () => {
     if (!phoneResult.valid) {
+      track("viewing_form_validation_failed", {
+        property_id: propertyId,
+        field: "phone",
+      });
       setShowPhoneError(true);
       return;
     }
@@ -157,7 +178,7 @@ const RequestViewingButton = ({
   return (
     <>
       <TouchableOpacity
-        onPress={() => setVisible(true)}
+        onPress={openForm}
         className="w-full flex flex-row items-center justify-center bg-primary-300 py-4 rounded-full shadow-md shadow-zinc-400"
       >
         <Text className="text-white text-lg text-center font-rubik-bold">
@@ -169,7 +190,7 @@ const RequestViewingButton = ({
         visible={visible}
         animationType="slide"
         transparent
-        onRequestClose={() => setVisible(false)}
+        onRequestClose={abandonForm}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -269,7 +290,7 @@ const RequestViewingButton = ({
 
               <View className="flex-row gap-3 mt-6">
                 <TouchableOpacity
-                  onPress={() => setVisible(false)}
+                  onPress={abandonForm}
                   disabled={submitting}
                   className="flex-1 bg-gray-100 rounded-full py-3"
                 >

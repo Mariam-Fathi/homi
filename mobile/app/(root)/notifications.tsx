@@ -18,6 +18,8 @@ import {
   markNotificationAsRead,
 } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { track } from "@/lib/analytics";
+import { useScreenView } from "@/lib/analytics/hooks";
 import type { AppNotification } from "@/types/api";
 
 const NotificationItem = ({
@@ -54,6 +56,7 @@ const NotificationItem = ({
 };
 
 const Notifications = () => {
+  useScreenView("notifications");
   const { user } = useAuthStore();
 
   const {
@@ -77,6 +80,12 @@ const Notifications = () => {
   };
 
   const handleNotificationPress = async (notification: AppNotification) => {
+    track("notification_opened", {
+      notification_id: notification.id,
+      kind: notification.kind,
+      property_id: notification.related_property_id,
+      via: "list",
+    });
     if (!notification.is_read) {
       try {
         await markNotificationAsRead(notification.id);
@@ -87,7 +96,9 @@ const Notifications = () => {
     }
 
     if (notification.related_property_id) {
-      router.push(`/properties/${notification.related_property_id}`);
+      router.push(
+        `/properties/${notification.related_property_id}?source=notification`
+      );
     }
   };
 

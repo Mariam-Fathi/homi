@@ -15,6 +15,7 @@ import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DeleteAccountModal from "@/components/DeleteAccountModal";
 import UserAvatar from "@/components/UserAvatar";
+import { useScreenView } from "@/lib/analytics/hooks";
 import { formatPhone } from "@/lib/phone";
 
 interface SettingsItemProp {
@@ -50,6 +51,7 @@ const SettingsItem = ({
 );
 
 const Profile = () => {
+  useScreenView("profile");
   const { user, isAuthenticated, logout } = useAuthStore();
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 

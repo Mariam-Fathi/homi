@@ -21,6 +21,11 @@ import { useApi } from "@/lib/useApi";
 import { getFeaturedProperties, getProperties } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationsBadge } from "@/hooks/useNotificationsBadge";
+import {
+  useImpressionTracking,
+  useScreenView,
+  useTrackedSearch,
+} from "@/lib/analytics/hooks";
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -35,6 +40,10 @@ const Home = () => {
   const { unreadCount, refreshNotifications } = useNotificationsBadge();
 
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
+  useScreenView("home");
+  const featuredImpressions = useImpressionTracking("featured");
+  const listImpressions = useImpressionTracking("home");
+  const searchProperties = useTrackedSearch(getProperties);
 
   const {
     data: latestProperties,
@@ -46,11 +55,11 @@ const Home = () => {
 
   // useApi refetches by itself whenever filter/query change.
   const {
-    data: properties,
+    data: page,
     refetch,
     loading,
   } = useApi({
-    fn: getProperties,
+    fn: searchProperties,
     params: {
       filter: params.filter,
       query: params.query,
@@ -83,16 +92,15 @@ const Home = () => {
     params.query,
   ]);
 
-  const handleCardPress = (id: string) => router.push(`/properties/${id}`);
-
   return (
     <SafeAreaView className="h-full bg-white">
       <FlatList
-        data={properties}
+        data={page?.items}
         numColumns={2}
-        renderItem={({ item }) => (
-          <Card item={item} onPress={() => handleCardPress(item.id)} />
+        renderItem={({ item, index }) => (
+          <Card item={item} list="home" position={index} />
         )}
+        {...listImpressions}
         keyExtractor={(item) => item.id}
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
@@ -149,15 +157,17 @@ const Home = () => {
               ) : (
                 <FlatList
                   data={latestProperties}
-                  renderItem={({ item }) => (
+                  renderItem={({ item, index }) => (
                     <FeaturedCard
                       item={item}
-                      onPress={() => handleCardPress(item.id)}
+                      list="featured"
+                      position={index}
                     />
                   )}
                   keyExtractor={(item) => item.id}
                   horizontal
                   showsHorizontalScrollIndicator={false}
+                  {...featuredImpressions}
                   contentContainerClassName="flex gap-5 mt-5"
                 />
               )}

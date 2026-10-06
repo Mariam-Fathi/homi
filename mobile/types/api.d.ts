@@ -71,8 +71,11 @@ export interface PropertyPage {
 
 export type NotificationType = "info" | "success" | "warning" | "error";
 
+export type NotificationKind = "welcome" | "recommendation" | "viewing_status";
+
 export interface AppNotification {
   id: string;
+  kind: NotificationKind;
   title: string;
   message: string;
   type: NotificationType;

@@ -19,31 +19,38 @@ import NotificationBell from "@/components/NotificationBell";
 import { getProperties } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useNotificationsBadge } from "@/hooks/useNotificationsBadge";
+import {
+  useImpressionTracking,
+  useScreenView,
+  useTrackedSearch,
+} from "@/lib/analytics/hooks";
 
 const Explore = () => {
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();
   const { unreadCount } = useNotificationsBadge();
+  useScreenView("explore");
+  const impressions = useImpressionTracking("explore");
+  const searchProperties = useTrackedSearch(getProperties);
 
   // useApi refetches by itself whenever filter/query change.
-  const { data: properties, loading } = useApi({
-    fn: getProperties,
+  const { data: page, loading } = useApi({
+    fn: searchProperties,
     params: {
       filter: params.filter,
       query: params.query,
     },
   });
 
-  const handleCardPress = (id: string) => router.push(`/properties/${id}`);
-
   return (
     <SafeAreaView className="h-full bg-white">
       <FlatList
-        data={properties}
+        data={page?.items}
         numColumns={2}
-        renderItem={({ item }) => (
-          <Card item={item} onPress={() => handleCardPress(item.id)} />
+        renderItem={({ item, index }) => (
+          <Card item={item} list="explore" position={index} />
         )}
         keyExtractor={(item) => item.id}
+        {...impressions}
         contentContainerClassName="pb-32"
         columnWrapperClassName="flex gap-5 px-5"
         showsVerticalScrollIndicator={false}
@@ -81,8 +88,8 @@ const Explore = () => {
               <Text className="text-xl font-rubik-bold text-black-300 mt-5">
                 {loading
                   ? "Searching..."
-                  : `Found ${properties?.length ?? 0} ${
-                      properties?.length === 1 ? "Property" : "Properties"
+                  : `Found ${page?.total ?? 0} ${
+                      page?.total === 1 ? "Property" : "Properties"
                     }`}
               </Text>
             </View>

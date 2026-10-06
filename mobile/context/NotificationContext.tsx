@@ -9,6 +9,14 @@ import React, {
 import * as Notifications from "expo-notifications";
 import { registerForPushNotificationsAsync } from "@/utils/registerForPushNotificationsAsync";
 import { router } from "expo-router";
+import { track } from "@/lib/analytics";
+
+const isNotificationKind = (
+  value: unknown
+): value is "welcome" | "recommendation" | "viewing_status" =>
+  value === "welcome" ||
+  value === "recommendation" ||
+  value === "viewing_status";
 import { Platform } from "react-native";
 
 interface NotificationContextType {
@@ -18,14 +26,14 @@ interface NotificationContextType {
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
-    undefined
+  undefined
 );
 
 export const useNotification = () => {
   const context = useContext(NotificationContext);
   if (context === undefined) {
     throw new Error(
-        "useNotification must be used within a NotificationProvider"
+      "useNotification must be used within a NotificationProvider"
     );
   }
   return context;
@@ -36,13 +44,13 @@ interface NotificationProviderProps {
 }
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({
-                                                                            children,
-                                                                          }: {
+  children,
+}: {
   children: ReactNode;
 }) => {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] =
-      useState<Notifications.Notification | null>(null);
+    useState<Notifications.Notification | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   const notificationListener = useRef<Notifications.EventSubscription>();
@@ -53,16 +61,26 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     if (Platform.OS === "web") return;
 
     registerForPushNotificationsAsync().then(
-        (token) => setExpoPushToken(token),
-        (error) => setError(error)
+      (token) => setExpoPushToken(token),
+      (error) => setError(error)
     );
 
     const openNotificationTarget = (
-        response: Notifications.NotificationResponse
+      response: Notifications.NotificationResponse
     ) => {
-      const propertyId = response.notification.request.content.data?.id;
+      const data = response.notification.request.content.data ?? {};
+      const propertyId = typeof data.id === "string" ? data.id : null;
+      track("notification_opened", {
+        notification_id:
+          typeof data.notification_id === "string"
+            ? data.notification_id
+            : null,
+        kind: isNotificationKind(data.kind) ? data.kind : "recommendation",
+        property_id: propertyId,
+        via: "push",
+      });
       if (propertyId) {
-        router.push(`/properties/${propertyId}`);
+        router.push(`/properties/${propertyId}?source=push`);
       }
     };
 
@@ -73,21 +91,21 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     });
 
     notificationListener.current =
-        Notifications.addNotificationReceivedListener((notification) => {
-          console.log("🔔 Notification Received: ", notification);
-          setNotification(notification);
-        });
+      Notifications.addNotificationReceivedListener((notification) => {
+        console.log("🔔 Notification Received: ", notification);
+        setNotification(notification);
+      });
 
     responseListener.current =
-        Notifications.addNotificationResponseReceivedListener((response) => {
-          console.log(
-              "🔔 Notification Response: ",
-              JSON.stringify(response, null, 2),
-              JSON.stringify(response.notification.request.content.data, null, 2)
-          );
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(
+          "🔔 Notification Response: ",
+          JSON.stringify(response, null, 2),
+          JSON.stringify(response.notification.request.content.data, null, 2)
+        );
 
-          openNotificationTarget(response);
-        });
+        openNotificationTarget(response);
+      });
 
     return () => {
       notificationListener.current?.remove();
@@ -96,10 +114,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   }, []);
 
   return (
-      <NotificationContext.Provider
-          value={{ expoPushToken, notification, error }}
-      >
-        {children}
-      </NotificationContext.Provider>
+    <NotificationContext.Provider
+      value={{ expoPushToken, notification, error }}
+    >
+      {children}
+    </NotificationContext.Provider>
   );
 };

@@ -3,10 +3,12 @@ import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import "./global.css";
+import { useAnalyticsLifecycle } from "@/lib/analytics";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function Layout() {
+  useAnalyticsLifecycle();
   const [fontsLoaded] = useFonts({
     "Rubik-Bold": require("../assets/fonts/Rubik-Bold.ttf"),
     "Rubik-ExtraBold": require("../assets/fonts/Rubik-Bold.ttf"),

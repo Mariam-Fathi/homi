@@ -23,6 +23,7 @@ import {
   getMyViewingRequests,
 } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
+import { useScreenView } from "@/lib/analytics/hooks";
 import type { ViewingRequest } from "@/types/api";
 
 const CANCELLABLE = new Set(["requested", "contacted", "scheduled"]);
@@ -37,7 +38,9 @@ const ViewingItem = ({
   const [bg, fg] = VIEWING_STATUS_COLORS[request.status];
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/properties/${request.property_id}`)}
+      onPress={() =>
+        router.push(`/properties/${request.property_id}?source=viewings`)
+      }
       className="flex-row p-4 border-b border-gray-200 bg-white"
     >
       <Image
@@ -75,6 +78,7 @@ const ViewingItem = ({
 };
 
 const Viewings = () => {
+  useScreenView("viewings");
   const hasFocusedRef = useRef(false);
   const {
     data: requests,
