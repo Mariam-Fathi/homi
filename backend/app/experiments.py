@@ -35,6 +35,14 @@ EXPERIMENTS: dict[str, Experiment] = {
             ),
             variants={"control": 0.5, "treatment": 0.5},
         ),
+        Experiment(
+            key="recommender",
+            description=(
+                "Which model picks 'a home you might like': the original rule (control), "
+                "popularity, or the hybrid model. See docs/recommender.md."
+            ),
+            variants={"control": 1 / 3, "popularity": 1 / 3, "hybrid": 1 / 3},
+        ),
     ]
 }
 

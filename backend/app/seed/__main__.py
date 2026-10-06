@@ -103,7 +103,7 @@ def _description(
     )
 
 
-def seed(reset: bool) -> None:
+def seed(reset: bool, properties: int = PROPERTY_COUNT) -> None:
     rng = random.Random(RNG_SEED)
     images = _load_images()
     now = datetime.now(UTC)
@@ -131,14 +131,21 @@ def seed(reset: bool) -> None:
         db.add_all(agents)
 
         used_names: set[str] = set()
-        for i in range(PROPERTY_COUNT):
+        for i in range(properties):
             area, city, types = rng.choice(LOCATIONS)
             ptype = rng.choice(types)
             profile = TYPE_PROFILES[ptype]
 
             name = f"{rng.choice(NAME_PREFIXES)} {rng.choice(NAME_PARTS[ptype])}"
-            while name in used_names:
+            attempts = 1
+            while name in used_names and attempts < 50:
                 name = f"{rng.choice(NAME_PREFIXES)} {rng.choice(NAME_PARTS[ptype])}"
+                attempts += 1
+            # Large catalogs run out of name combinations: number the repeats. (The
+            # default 40-listing catalog never gets here, so it stays identical.)
+            base, n = name, 2
+            while name in used_names:
+                name, n = f"{base} {n}", n + 1
             used_names.add(name)
 
             beds = rng.randint(*profile["beds"])
@@ -186,7 +193,7 @@ def seed(reset: bool) -> None:
             db.add(prop)
 
         db.commit()
-        print(f"Seeded {len(agents)} agents and {PROPERTY_COUNT} properties.")
+        print(f"Seeded {len(agents)} agents and {properties} properties.")
 
 
 def promote(identifier: str) -> None:
@@ -205,12 +212,15 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("--reset", action="store_true", help="wipe all data before seeding")
+    parser.add_argument(
+        "--properties", type=int, default=PROPERTY_COUNT, help="catalog size (default 40)"
+    )
     parser.add_argument("--promote", metavar="PHONE_OR_ID", help="make an existing user an admin")
     args = parser.parse_args()
     if args.promote:
         promote(args.promote)
     else:
-        seed(reset=args.reset)
+        seed(reset=args.reset, properties=args.properties)
 
 
 if __name__ == "__main__":

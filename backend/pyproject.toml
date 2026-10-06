@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.7",
     "pyjwt>=2.10",
     "phonenumbers>=8.13",
+    "numpy>=2.0",
 ]
 
 [project.optional-dependencies]

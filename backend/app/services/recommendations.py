@@ -1,40 +1,54 @@
-"""Rule-based "new properties you might like" notifications.
+"""Recommendation notifications ("a home you might like").
 
-This is the baseline the project will later compare a learned recommender against,
-so its rules are kept explicit and easy to reason about:
-
-* a user's preferred type is the most-viewed property type among their last
-  RECENT_VIEWS views, if there are at least MIN_VIEWS of them and that type's
-  share is at least MIN_CONFIDENCE;
-* users without a preference get a one-time welcome notification that recommends
-  nothing: with no history there is no signal, and "the newest listing" would be the
-  same for everyone while reading as personalized (the cold-start problem);
-* users with a preference are told about the newest property of that type added
-  within NEW_PROPERTY_WINDOW that they haven't viewed or been notified about yet.
+* People with fewer than RULE_MIN_VIEWS property views don't have enough history to
+  recommend from: they get a one-time welcome that recommends nothing (cold start).
+* Everyone else may get a recommendation chosen by a model from app.recommender. Which
+  model is decided by the `recommender` experiment: the original rule (control),
+  popularity, or the hybrid model (docs/recommender.md). The trigger doesn't depend on
+  the variant, so every variant is eligible in exactly the same situations, and the
+  notification text is identical, so only the choice of listing differs.
+* Candidates are listings the person hasn't viewed, saved, requested or already been
+  recommended.
 """
 
-from collections import Counter
+import time
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.events.recorder import ClientContext
-from app.models import Notification, NotificationKind, Property, PropertyView, User
+from app.events.recorder import ClientContext, record_server_event
+from app.experiments import EXPERIMENTS, assign
+from app.models import (
+    Favorite,
+    Notification,
+    NotificationKind,
+    Property,
+    PropertyView,
+    User,
+    ViewingRequest,
+)
+from app.recommender import (
+    RULE_MIN_VIEWS,
+    Hybrid,
+    Interaction,
+    Listing,
+    Popularity,
+    Recommender,
+    RuleBased,
+    city_of,
+)
 from app.services.notifications import create_notification
 
-RECENT_VIEWS = 20
-MIN_VIEWS = 3
-MIN_CONFIDENCE = 0.4
-NEW_PROPERTY_WINDOW = timedelta(days=7)
+EXPERIMENT_KEY = "recommender"
+MODEL_FOR_VARIANT: dict[str, type[Recommender]] = {
+    "control": RuleBased,
+    "popularity": Popularity,
+    "hybrid": Hybrid,
+}
+REFIT_SECONDS = 600  # retrain at most every 10 minutes (a nightly job in production)
 
-
-@dataclass(frozen=True)
-class Preference:
-    type: str
-    confidence: float
-    views_analyzed: int
+_fitted: dict[str, tuple[float, Recommender]] = {}
 
 
 @dataclass(frozen=True)
@@ -43,86 +57,108 @@ class CheckResult:
     notification: Notification | None = None
 
 
-def analyze_preference(db: Session, user_id: str) -> Preference | None:
-    recent_types = db.scalars(
-        select(Property.type)
-        .join(PropertyView, PropertyView.property_id == Property.id)
-        .where(PropertyView.user_id == user_id)
-        .order_by(PropertyView.created_at.desc())
-        .limit(RECENT_VIEWS)
-    ).all()
-
-    if len(recent_types) < MIN_VIEWS:
-        return None
-
-    counts = Counter(recent_types)
-    # Ties are broken alphabetically so the result is deterministic.
-    favorite, count = min(counts.items(), key=lambda item: (-item[1], item[0]))
-    confidence = count / len(recent_types)
-    if confidence < MIN_CONFIDENCE:
-        return None
-    return Preference(type=favorite, confidence=confidence, views_analyzed=len(recent_types))
-
-
 def _area(address: str) -> str:
     """'12 Nile St, Maadi, Cairo' -> 'Maadi'; falls back to the whole address."""
     parts = [part.strip() for part in address.split(",") if part.strip()]
     return parts[1] if len(parts) >= 3 else (address or "your area")
 
 
+def _interactions(db: Session, user_id: str | None = None) -> list[Interaction]:
+    sources = [
+        ("view", PropertyView.user_id, PropertyView.property_id, PropertyView.created_at),
+        ("favorite", Favorite.user_id, Favorite.property_id, Favorite.created_at),
+        ("request", ViewingRequest.user_id, ViewingRequest.property_id, ViewingRequest.created_at),
+    ]
+    interactions = []
+    for kind, user_col, property_col, at_col in sources:
+        query = select(user_col, property_col, at_col)
+        if user_id is not None:
+            query = query.where(user_col == user_id)
+        interactions += [Interaction(u, p, kind, at) for u, p, at in db.execute(query)]
+    return interactions
+
+
+def _catalog(db: Session) -> list[Listing]:
+    return [
+        Listing(p.id, p.type, city_of(p.address), p.price, p.area, p.bedrooms, p.created_at)
+        for p in db.scalars(select(Property).order_by(Property.id))
+    ]
+
+
+def _model(db: Session, variant: str) -> Recommender:
+    cached = _fitted.get(variant)
+    if cached and time.monotonic() - cached[0] < REFIT_SECONDS:
+        return cached[1]
+    model = MODEL_FOR_VARIANT[variant]().fit(_interactions(db), _catalog(db))
+    _fitted[variant] = (time.monotonic(), model)
+    return model
+
+
+def _welcome_once(db: Session, user_id: str, context: ClientContext | None) -> CheckResult:
+    if db.scalar(select(Notification.id).where(Notification.user_id == user_id).limit(1)):
+        return CheckResult("no_preference_yet")
+    user = db.get(User, user_id)
+    first_name = user.name.split()[0] if user and not user.is_demo else None
+    notification = create_notification(
+        db,
+        user_id=user_id,
+        kind=NotificationKind.WELCOME,
+        title=f"🏠 Welcome to Homi, {first_name}!" if first_name else "🏠 Welcome to Homi!",
+        message=(
+            "Browse homes and save the ones you like. Once we learn what you're "
+            "looking for, we'll let you know when matching properties are listed."
+        ),
+        context=context,
+    )
+    db.commit()
+    return CheckResult("welcome", notification)
+
+
 def check_new_properties(
     db: Session, user_id: str, context: ClientContext | None = None
 ) -> CheckResult:
-    preference = analyze_preference(db, user_id)
+    history = _interactions(db, user_id)
+    if sum(1 for i in history if i.kind == "view") < RULE_MIN_VIEWS:
+        return _welcome_once(db, user_id, context)
 
-    if preference is None:
-        has_any = db.scalar(select(Notification.id).where(Notification.user_id == user_id).limit(1))
-        if has_any:
-            return CheckResult("no_preference_yet")
-
-        user = db.get(User, user_id)
-        first_name = user.name.split()[0] if user and not user.is_demo else None
-        notification = create_notification(
+    experiment = EXPERIMENTS[EXPERIMENT_KEY]
+    variant = assign(experiment, user_id) if experiment.active else "control"
+    if experiment.active:
+        record_server_event(
             db,
+            "experiment_exposed",
             user_id=user_id,
-            kind=NotificationKind.WELCOME,
-            title=f"🏠 Welcome to Homi, {first_name}!" if first_name else "🏠 Welcome to Homi!",
-            message=(
-                "Browse homes and save the ones you like. Once we learn what you're "
-                "looking for, we'll let you know when matching properties are listed."
-            ),
             context=context,
+            experiment=EXPERIMENT_KEY,
+            variant=variant,
         )
-        db.commit()
-        return CheckResult("welcome", notification)
 
-    already_notified = select(Notification.related_property_id).where(
-        Notification.user_id == user_id,
-        Notification.related_property_id.is_not(None),
+    already_recommended = set(
+        db.scalars(
+            select(Notification.related_property_id).where(
+                Notification.user_id == user_id,
+                Notification.kind == NotificationKind.RECOMMENDATION,
+            )
+        )
     )
-    already_viewed = select(PropertyView.property_id).where(PropertyView.user_id == user_id)
-    candidate = db.scalars(
-        select(Property)
-        .where(
-            Property.type == preference.type,
-            Property.created_at >= datetime.now(UTC) - NEW_PROPERTY_WINDOW,
-            Property.id.not_in(already_notified),
-            Property.id.not_in(already_viewed),
-        )
-        .order_by(Property.created_at.desc())
-        .limit(1)
-    ).first()
-
-    if candidate is None:
+    model = _model(db, variant)
+    picks = model.recommend(
+        history, exclude={i.property_id for i in history} | already_recommended, k=1
+    )
+    if not picks:
+        db.commit()  # keep the exposure
+        if isinstance(model, RuleBased) and model.preferred_type(history) is None:
+            return CheckResult("no_preference_yet")
         return CheckResult("no_new_matches")
 
+    listing = db.get(Property, picks[0])
     notification = create_notification(
         db,
         user_id=user_id,
         kind=NotificationKind.RECOMMENDATION,
-        title="🏠 New Property You Might Like!",
-        message=f"{candidate.name} just listed in {_area(candidate.address)}.",
-        property_id=candidate.id,
+        title="🏠 A home you might like",
+        message=f"{listing.name} in {_area(listing.address)}, based on homes you've viewed.",
+        property_id=listing.id,
         context=context,
     )
     db.commit()

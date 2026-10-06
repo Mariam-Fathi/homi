@@ -9,20 +9,22 @@ import plan from "../../../../shared/tracking-plan.json";
 import { APP_EVENT_NAMES } from "@/lib/analytics/events";
 
 type PlanEntry = {
-  source: "app" | "server";
+  source: "app" | "server" | "both";
   properties: { properties?: Record<string, unknown>; required?: string[] };
 };
 const entries = plan as Record<string, PlanEntry>;
 
 describe("tracking plan contract", () => {
   it("the app sends exactly the events the plan assigns to the app", () => {
-    const planned = Object.keys(entries).filter((name) => entries[name].source === "app");
+    const planned = Object.keys(entries).filter((name) =>
+      ["app", "both"].includes(entries[name].source)
+    );
     expect([...APP_EVENT_NAMES].sort()).toEqual(planned.sort());
   });
 
   it("the app never sends server-side events", () => {
     for (const name of APP_EVENT_NAMES) {
-      expect(entries[name].source).toBe("app");
+      expect(["app", "both"]).toContain(entries[name].source);
     }
   });
 });

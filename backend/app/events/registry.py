@@ -2,7 +2,8 @@
 
 Each event has a pydantic model for its properties (unknown properties are rejected)
 and a source: events marked "server" are recorded by the API itself and can't be
-sent by the app, so outcomes such as `viewing_requested` can't be faked.
+sent by the app, so outcomes such as `viewing_requested` can't be faked. "both" is for
+events either side can observe (exposure to a server-side experiment, for example).
 """
 
 from dataclasses import dataclass
@@ -10,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Source = Literal["app", "server"]
+Source = Literal["app", "server", "both"]
 
 
 class Props(BaseModel):
@@ -159,7 +160,9 @@ EVENTS: dict[str, EventSpec] = {
     "viewing_status_changed": EventSpec("server", ViewingStatusChanged),
     "notification_created": EventSpec("server", NotificationCreated),
     "notification_opened": EventSpec("app", NotificationOpened),
-    "experiment_exposed": EventSpec("app", ExperimentExposed),
+    # The app records exposure to UI experiments; the server to server-side ones
+    # (e.g. which model chose a recommendation).
+    "experiment_exposed": EventSpec("both", ExperimentExposed),
 }
 
 

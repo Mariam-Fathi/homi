@@ -44,7 +44,10 @@ flowchart LR
 | **Server** | Outcomes: sign-ups, favorites, viewing requests, status changes, notifications created | Recorded in the same transaction as the database change, so it can't be lost or faked. These are the numbers to trust for business metrics. |
 | **App** | Interactions: screens, impressions, clicks, form behavior, searches | Only the app can see them. Some will be lost (app killed, phone offline for days), so interaction metrics are slight undercounts. |
 
-An event is sent from only one place, so nothing is counted twice.
+An event is sent from only one place, so nothing is counted twice. The one exception
+is `experiment_exposed`: the app records exposure to experiments that change the app,
+and the server to experiments it runs itself (such as which model picks a
+recommendation). A given experiment only ever records it from one side.
 
 ## Properties on every event
 
@@ -110,7 +113,7 @@ Naming: `object_action` in past tense, snake_case (`property_viewed`, not `viewP
 
 | Event | Source | Fires when | Properties |
 |---|---|---|---|
-| `experiment_exposed` | app | An experiment's variant first changes what the person sees (not when they're merely assigned) | `experiment`: string, `variant`: string |
+| `experiment_exposed` | app or server | An experiment's variant first changes what the person sees (not when they're merely assigned) | `experiment`: string, `variant`: string |
 
 See [experimentation.md](experimentation.md) for why exposure, not assignment, defines
 who is in an experiment.
