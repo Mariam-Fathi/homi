@@ -9,6 +9,7 @@ defined in the [tracking plan](../docs/tracking-plan.md). Background and definit
 |---|---|
 | Data model (SQL views in an `analytics` schema) | `homi_analytics/sql/` |
 | Metrics and diagnosis | `homi_analytics/metrics.py` |
+| A/B test design and analysis | `homi_analytics/experiments.py` |
 | User simulator with planted problems | `homi_analytics/simulator.py` |
 | Dashboard | `dashboard.py` |
 | Tests, including "the analysis finds every planted problem" | `tests/` |
@@ -48,6 +49,12 @@ python -m homi_analytics.simulator --users 2000 --days 28 --seed 7 --end 2026-10
 Every simulated row is labeled `app_version = "simulator"`; `--reset` removes earlier
 simulated data first.
 
+To run the `phone_autoformat` experiment as well (reproduces the experiment case study):
+
+```bash
+python -m homi_analytics.simulator --users 12000 --days 28 --seed 31 --end 2026-10-05 --experiment --reset
+```
+
 ## Dashboard
 
 ```bash
@@ -65,5 +72,7 @@ pytest
 ```
 
 Builds a fresh `homi_analytics_test` database with the backend's migrations, checks the
-SQL views on hand-written events, then simulates 2,500 people and checks the analysis
-recovers every planted problem without false alarms.
+SQL views on hand-written events, then simulates usage and checks the analysis
+recovers every planted problem without false alarms. The A/B statistics are checked
+against textbook values and by simulation (a 5% false-positive rate and the planned
+power).
