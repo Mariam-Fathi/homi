@@ -31,7 +31,7 @@ flowchart LR
 | Part | Stack | Highlights |
 |---|---|---|
 | [`mobile/`](mobile) | Expo SDK 52, React Native, TypeScript (strict), NativeWind, Zustand | Typed API client, encrypted token storage, per-country phone validation, optimistic favorites, viewing-request flow |
-| [`backend/`](backend) | Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16 | Phone + guest sign-in (JWT), libphonenumber validation, status pipeline with transition rules, rule-based recommendations, cascade-delete account removal |
+| [`backend/`](backend) | Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16, NumPy | Phone + guest sign-in (JWT), libphonenumber validation, status pipeline with transition rules, recommendation models (rule, popularity, content-based, item-kNN, hybrid), cascade-delete account removal |
 | Event tracking | [Tracking plan](docs/tracking-plan.md), shared JSON contract | 20 events; offline-safe batched client; validated, idempotent ingestion; server-recorded outcomes |
 | [`analytics/`](analytics) | SQL, pandas, SciPy, Streamlit | Funnel data model, per-stage diagnosis, A/B test design and analysis, a user simulator with planted effects, dashboard |
 | Experiments | Hash-based assignment, exposure events | Sticky, independent variant assignment; exposure logged only where a variant changes what people see |
@@ -98,6 +98,9 @@ PostgreSQL on port **5433** so it doesn't clash with a locally installed one.
   labeled usage with known problems planted on purpose. The analysis must find all of
   them, with no false alarms, in CI on every change: evidence the method works before
   it's trusted on real data.
+- **Offline scores aren't the final word.** The recommender that won offline
+  (popularity) cut recommendation opens by 43% online; the pre-registered test caught
+  it before it shipped ([case study](docs/case-study-recommender.md)).
 - **Experiments decided in advance.** The metric, sample size and decision rule are
   [written down before the test runs](docs/experimentation.md); results are analyzed
   once, at the planned size, and the dashboard won't show a verdict before then.
@@ -110,4 +113,4 @@ PostgreSQL on port **5433** so it doesn't clash with a locally installed one.
 - [x] **Phase 2 — Event tracking:** [tracking plan](docs/tracking-plan.md), batched offline-safe client, validated ingestion API
 - [x] **Phase 3 — Funnel analytics:** data model, diagnosis, simulator, dashboard — [case study](docs/case-study-funnel.md)
 - [x] **Phase 4 — Experimentation:** assignment, exposure logging, pre-registered A/B test with power analysis — [case study](docs/case-study-experiment.md)
-- [ ] **Phase 5 — Recommender:** learned model evaluated offline and online against today's rule-based baseline
+- [x] **Phase 5 — Recommender:** five models, time-split offline evaluation, three-arm online test — [case study](docs/case-study-recommender.md)
