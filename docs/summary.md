@@ -1,8 +1,5 @@
 # Homi: project summary
 
-*A one-page overview for reviewers. Details are in the [README](../README.md) and the
-three case studies.*
-
 ## The problem
 
 A product team can ship features, but can it tell **where users are lost, whether a
