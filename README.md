@@ -10,8 +10,6 @@ questions with pre-registered analyses.
 People browse listings, save favorites and **request a viewing** (the conversion),
 which moves through an agent pipeline with a notification at every step.
 
-**One-page summary for reviewers: [docs/summary.md](docs/summary.md)**
-
 ## Findings
 
 | Question | Answer | Evidence |
