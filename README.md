@@ -75,43 +75,6 @@ Sign in with a name and mobile number, or tap "Continue as Guest".
 The analytics, simulator and dashboard have their own setup:
 [analytics/README.md](analytics/README.md).
 
-## Tests
-
-| Suite | Command | Covers |
-|---|---|---|
-| Backend (69) | `cd backend && pytest` | Every endpoint against a real PostgreSQL built through the migrations; event ingestion; assignment; recommendation models |
-| Mobile (53) | `cd mobile && npm test` | API client, event tracker (offline queue, retries, sessions), impressions, phone validation, experiments, stores; a contract test against the backend's event registry |
-| Analytics (36) | `cd analytics && pytest` | SQL data model; A/B statistics (false-positive rate and power, by simulation); the analysis recovering every planted effect; offline evaluation; dashboard rendering |
-| End to end | `python backend/scripts/smoke_test.py` | The whole user journey against the running Docker stack |
-
-Backend and analytics tests use the Docker database, which listens on port **5433** so
-it doesn't clash with a locally installed PostgreSQL.
-
-## Design decisions
-
-- **Own backend instead of a BaaS.** The app started on Appwrite. A backend I control
-  enforces rules in one place (one open viewing request per property, valid status
-  transitions), deletes accounts for real, and owns the data model the analytics
-  depends on.
-- **The conversion is a viewing request, not a payment.** Payments in a demo aren't
-  realistic; a viewing request is what a real-estate funnel optimizes for.
-- **Events have one owner.** Outcomes (sign-ups, favorites, viewing requests) are
-  recorded by the server in the same transaction as the change, so they can't be lost
-  or faked; only what the server can't see comes from the app. The two event lists are
-  checked against each other in CI.
-- **Analyses are validated before they're trusted.** The simulator plants known
-  problems and effects; CI fails if the analysis misses one or raises a false alarm.
-- **Experiments are decided in advance.** Metric, sample size and decision rule are
-  [written down before a test runs](docs/experimentation.md); results are read once, at
-  the planned size, and the dashboard shows no verdict before then.
-- **Offline scores aren't the final word.** The recommender that won offline lost
-  online ([case study 3](docs/case-study-recommender.md)).
-- **Phone sign-in without SMS codes.** Numbers are validated per country with Google's
-  libphonenumber and must be mobiles, but ownership isn't verified: a one-time code
-  needs a paid SMS provider, out of scope for a demo. Anyone who knows a number can
-  open that account (though not rename it). OTP is the first step before real users.
-- **Reproducible everything.** Fixed seeds and end dates regenerate every dataset and
-  every number in the case studies exactly.
 
 ## How it was built
 
