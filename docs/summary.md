@@ -1,4 +1,4 @@
-# Homi: project summary
+# Project summary
 
 ## The problem
 
